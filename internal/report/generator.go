@@ -284,7 +284,6 @@ func writeMonthFile(month MonthData, yearDir string, year int) error {
 
 	fmt.Fprintf(file, "# %s %d\n\n", month.Month.String(), year)
 	fmt.Fprintf(file, "> **Monthly Total:** %s\n\n", formatDuration(month.Total))
-	fmt.Fprintf(file, "[← Back to Year](index.md)\n\n")
 	fmt.Fprintf(file, "---\n\n")
 
 	monthTags := make(map[string]float64)

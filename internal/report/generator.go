@@ -339,25 +339,70 @@ func writeWeek(file *os.File, week WeekData) {
 	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
 
 	if len(week.Tasks) > 0 {
-		fmt.Fprintf(file, "| # | Task | Tags | Time | Sessions |\n")
-		fmt.Fprintf(file, "|--:|:-----|:-----|-----:|---------:|\n")
+		tasksByTag := groupTasksByTag(week.Tasks)
 
-		for i, t := range week.Tasks {
-			tags := formatTags(t.Tags)
-			if tags == "" {
-				tags = "—"
-			}
-			fmt.Fprintf(file, "| %d | %s | %s | %s | %d |\n",
-				i+1,
-				truncate(t.Description, 50),
-				tags,
-				formatDuration(t.TotalTime),
-				t.Sessions)
+		var tags []string
+		for tag := range tasksByTag {
+			tags = append(tags, tag)
 		}
-		fmt.Fprintf(file, "\n")
+		sort.Slice(tags, func(i, j int) bool {
+			var totalI, totalJ float64
+			for _, t := range tasksByTag[tags[i]] {
+				totalI += t.TotalTime
+			}
+			for _, t := range tasksByTag[tags[j]] {
+				totalJ += t.TotalTime
+			}
+			return totalI > totalJ
+		})
+
+		for _, tag := range tags {
+			tasks := tasksByTag[tag]
+			var tagTotal float64
+			for _, t := range tasks {
+				tagTotal += t.TotalTime
+			}
+
+			fmt.Fprintf(file, "### %s\n", tag)
+			fmt.Fprintf(file, "**Subtotal:** %s\n\n", formatDuration(tagTotal))
+
+			fmt.Fprintf(file, "| # | Task | Time | Sessions |\n")
+			fmt.Fprintf(file, "|--:|:-----|-----:|---------:|\n")
+
+			for i, t := range tasks {
+				fmt.Fprintf(file, "| %d | %s | %s | %d |\n",
+					i+1,
+					truncate(t.Description, 55),
+					formatDuration(t.TotalTime),
+					t.Sessions)
+			}
+			fmt.Fprintf(file, "\n")
+		}
 	}
 
 	fmt.Fprintf(file, "---\n\n")
+}
+
+func groupTasksByTag(tasks []TaskSummary) map[string][]TaskSummary {
+	grouped := make(map[string][]TaskSummary)
+
+	for _, t := range tasks {
+		if len(t.Tags) == 0 {
+			grouped["untagged"] = append(grouped["untagged"], t)
+		} else {
+			for tag := range t.Tags {
+				grouped[tag] = append(grouped[tag], t)
+			}
+		}
+	}
+
+	for tag := range grouped {
+		sort.Slice(grouped[tag], func(i, j int) bool {
+			return grouped[tag][i].TotalTime > grouped[tag][j].TotalTime
+		})
+	}
+
+	return grouped
 }
 
 func formatTags(tags map[string]bool) string {

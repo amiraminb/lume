@@ -14,20 +14,25 @@ import (
 )
 
 func Generate(entries []timewarrior.Entry, outputDir string, year int) error {
-	yearDir := filepath.Join(outputDir, fmt.Sprintf("%d", year))
-	if err := os.MkdirAll(yearDir, 0755); err != nil {
-		return err
+	reports := build.YearReports(entries)
+	if len(reports) == 0 {
+		return nil
 	}
 
-	report := build.YearReport(entries, year)
-
-	if err := writeYearIndex(report, yearDir); err != nil {
-		return err
-	}
-
-	for _, month := range report.Months {
-		if err := writeMonthFile(month, yearDir, year); err != nil {
+	for _, report := range reports {
+		yearDir := filepath.Join(outputDir, fmt.Sprintf("%d", report.Year))
+		if err := os.MkdirAll(yearDir, 0755); err != nil {
 			return err
+		}
+
+		if err := writeYearIndex(report, yearDir); err != nil {
+			return err
+		}
+
+		for _, month := range report.Months {
+			if err := writeMonthFile(month, yearDir, report.Year); err != nil {
+				return err
+			}
 		}
 	}
 

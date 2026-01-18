@@ -85,7 +85,7 @@ func init() {
 
 	rootCmd.Flags().StringVarP(&timewDataDir, "timewarrior", "t", filepath.Join(home, ".config", "timewarrior", "data"), "timewarrior data directory")
 	rootCmd.Flags().StringVarP(&outputDir, "output", "o", filepath.Join(home, "wiki", "report"), "output directory for reports")
-	rootCmd.Flags().IntVarP(&year, "year", "y", time.Now().Year(), "year to generate report for")
+	rootCmd.Flags().IntVarP(&year, "year", "y", time.Now().Year(), "unused (reports generated for all years)")
 
 	if cfg, err := config.Load(); err == nil {
 		if cfg.TimewarriorDir != "" {
@@ -121,13 +121,12 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("Found %d time entries\n", len(entries))
 
-	fmt.Printf("Generating report for year %d...\n", year)
+	fmt.Printf("Generating reports for all years...\n")
 	if err := report.Generate(entries, outputDir, year); err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
-	reportPath := filepath.Join(outputDir, fmt.Sprintf("%d", year))
-	fmt.Printf("Report generated: %s/\n", reportPath)
+	fmt.Printf("Reports generated under: %s/\n", outputDir)
 
 	return nil
 }

@@ -10,7 +10,31 @@ import (
 
 func YearReport(entries []timewarrior.Entry, year int) model.YearReport {
 	filtered := filterByYear(entries, year)
-	byMonth := groupByMonth(filtered)
+	return yearReportFromEntries(filtered, year)
+}
+
+func YearReports(entries []timewarrior.Entry) []model.YearReport {
+	byYear := make(map[int][]timewarrior.Entry)
+	for _, entry := range entries {
+		byYear[entry.Start.Year()] = append(byYear[entry.Start.Year()], entry)
+	}
+
+	var years []int
+	for year := range byYear {
+		years = append(years, year)
+	}
+	sort.Ints(years)
+
+	var reports []model.YearReport
+	for _, year := range years {
+		reports = append(reports, yearReportFromEntries(byYear[year], year))
+	}
+
+	return reports
+}
+
+func yearReportFromEntries(entries []timewarrior.Entry, year int) model.YearReport {
+	byMonth := groupByMonth(entries)
 
 	var months []model.MonthData
 	var yearTotal float64

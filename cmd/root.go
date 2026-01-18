@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"lume/internal/config"
 	"lume/internal/report"
 	"lume/internal/timewarrior"
 )
@@ -55,6 +57,12 @@ var reportMonthCmd = &cobra.Command{
 	RunE:  runReportMonth,
 }
 
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Configure default paths",
+	RunE:  runConfigWizard,
+}
+
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -68,6 +76,15 @@ func init() {
 	rootCmd.Flags().StringVarP(&outputDir, "output", "o", filepath.Join(home, "wiki", "report"), "output directory for reports")
 	rootCmd.Flags().IntVarP(&year, "year", "y", time.Now().Year(), "year to generate report for")
 
+	if cfg, err := config.Load(); err == nil {
+		if cfg.TimewarriorDir != "" {
+			timewDataDir = cfg.TimewarriorDir
+		}
+		if cfg.OutputDir != "" {
+			outputDir = cfg.OutputDir
+		}
+	}
+
 	reportDayCmd.Flags().StringVarP(&reportTime, "time", "t", "", "day to report (YYYY-MM-DD)")
 	reportWeekCmd.Flags().StringVarP(&reportTime, "time", "t", "", "week to report (YYYY-MM-DD in that week)")
 	reportMonthCmd.Flags().StringVarP(&reportTime, "time", "t", "", "month to report (YYYY-MM)")
@@ -78,6 +95,7 @@ func init() {
 
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(reportCmd)
+	rootCmd.AddCommand(configCmd)
 }
 
 func runGenerate(cmd *cobra.Command, args []string) error {
@@ -143,4 +161,81 @@ func runReportMonth(cmd *cobra.Command, args []string) error {
 	}
 
 	return report.PrintMonthReport(entries, month)
+}
+
+func runConfigWizard(cmd *cobra.Command, args []string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	fmt.Println("Press Enter to keep the current value.")
+
+	timewarrior, err := promptPath("Timewarrior data directory", cfg.TimewarriorDir)
+	if err != nil {
+		return err
+	}
+	output, err := promptPath("Output directory for reports", cfg.OutputDir)
+	if err != nil {
+		return err
+	}
+
+	cfg.TimewarriorDir = timewarrior
+	cfg.OutputDir = output
+
+	if err := config.Save(cfg); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	fmt.Println("Configuration saved.")
+	return nil
+}
+
+func promptPath(label, current string) (string, error) {
+	prompt := label
+	if current != "" {
+		prompt = fmt.Sprintf("%s [%s]", label, current)
+	}
+	fmt.Printf("%s: ", prompt)
+
+	var input string
+	if _, err := fmt.Fscanln(os.Stdin, &input); err != nil {
+		return "", fmt.Errorf("failed to read input: %w", err)
+	}
+
+	if input == "" {
+		return current, nil
+	}
+
+	expanded, err := expandTilde(input)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(expanded); err != nil {
+		return "", fmt.Errorf("path does not exist: %s", expanded)
+	}
+
+	return expanded, nil
+}
+
+func expandTilde(path string) (string, error) {
+	if !strings.HasPrefix(path, "~") {
+		return path, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve home directory: %w", err)
+	}
+
+	if path == "~" {
+		return home, nil
+	}
+
+	if strings.HasPrefix(path, "~/") {
+		return filepath.Join(home, path[2:]), nil
+	}
+
+	return path, nil
 }

@@ -4,47 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
+	"lume/internal/report/build"
+	"lume/internal/report/model"
+	"lume/internal/report/render"
 	"lume/internal/timewarrior"
 )
-
-type TaskSummary struct {
-	Description string
-	TotalTime   float64
-	Sessions    int
-	Tags        map[string]bool
-}
-
-type WeekData struct {
-	WeekNum int
-	Start   time.Time
-	End     time.Time
-	Tasks   []TaskSummary
-	ByTag   map[string]float64
-	Total   float64
-}
-
-type MonthData struct {
-	Month time.Month
-	Weeks []WeekData
-	Total float64
-}
-
-type YearReport struct {
-	Year   int
-	Months []MonthData
-	Total  float64
-}
-
-type DayReport struct {
-	Date  time.Time
-	Tasks []TaskSummary
-	ByTag map[string]float64
-	Total float64
-}
 
 func Generate(entries []timewarrior.Entry, outputDir string, year int) error {
 	yearDir := filepath.Join(outputDir, fmt.Sprintf("%d", year))
@@ -52,7 +19,7 @@ func Generate(entries []timewarrior.Entry, outputDir string, year int) error {
 		return err
 	}
 
-	report := buildYearReport(entries, year)
+	report := build.YearReport(entries, year)
 
 	if err := writeYearIndex(report, yearDir); err != nil {
 		return err
@@ -67,542 +34,15 @@ func Generate(entries []timewarrior.Entry, outputDir string, year int) error {
 	return nil
 }
 
-func buildYearReport(entries []timewarrior.Entry, year int) YearReport {
-	filtered := filterByYear(entries, year)
-	byMonth := groupByMonth(filtered)
-
-	var months []MonthData
-	var yearTotal float64
-
-	for month := time.January; month <= time.December; month++ {
-		monthEntries := byMonth[month]
-		if len(monthEntries) == 0 {
-			continue
-		}
-
-		weeks := groupByWeek(monthEntries)
-		var monthTotal float64
-		for _, w := range weeks {
-			monthTotal += w.Total
-		}
-		yearTotal += monthTotal
-
-		months = append(months, MonthData{
-			Month: month,
-			Weeks: weeks,
-			Total: monthTotal,
-		})
-	}
-
-	return YearReport{
-		Year:   year,
-		Months: months,
-		Total:  yearTotal,
-	}
-}
-
-func buildWeekReport(entries []timewarrior.Entry, date time.Time) WeekData {
-	start := weekStart(date)
-	end := start.AddDate(0, 0, 7)
-
-	var weekEntries []timewarrior.Entry
-	for _, e := range entries {
-		if !e.Start.Before(start) && e.Start.Before(end) {
-			weekEntries = append(weekEntries, e)
-		}
-	}
-
-	tasks := aggregateByDescription(weekEntries)
-	byTag := aggregateByTag(weekEntries)
-	weekStartDate, weekEndDate := weekBounds(start)
-
-	var total float64
-	for _, e := range weekEntries {
-		total += e.Duration().Hours()
-	}
-
-	return WeekData{
-		WeekNum: weekNumber(start),
-		Start:   weekStartDate,
-		End:     weekEndDate,
-		Tasks:   tasks,
-		ByTag:   byTag,
-		Total:   total,
-	}
-}
-
-func buildMonthReport(entries []timewarrior.Entry, month time.Month, year int) MonthData {
-	var monthEntries []timewarrior.Entry
-	for _, e := range entries {
-		if e.Start.Year() == year && e.Start.Month() == month {
-			monthEntries = append(monthEntries, e)
-		}
-	}
-
-	weeks := groupByWeek(monthEntries)
-	var total float64
-	for _, w := range weeks {
-		total += w.Total
-	}
-
-	return MonthData{
-		Month: month,
-		Weeks: weeks,
-		Total: total,
-	}
-}
-
-func buildDayReport(entries []timewarrior.Entry, date time.Time) DayReport {
-	start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	end := start.AddDate(0, 0, 1)
-
-	var dayEntries []timewarrior.Entry
-	for _, e := range entries {
-		if !e.Start.Before(start) && e.Start.Before(end) {
-			dayEntries = append(dayEntries, e)
-		}
-	}
-
-	tasks := aggregateByDescription(dayEntries)
-	byTag := aggregateByTag(dayEntries)
-	var total float64
-	for _, e := range dayEntries {
-		total += e.Duration().Hours()
-	}
-
-	return DayReport{
-		Date:  start,
-		Tasks: tasks,
-		ByTag: byTag,
-		Total: total,
-	}
-}
-
-func filterByYear(entries []timewarrior.Entry, year int) []timewarrior.Entry {
-	var filtered []timewarrior.Entry
-	for _, e := range entries {
-		if e.Start.Year() == year {
-			filtered = append(filtered, e)
-		}
-	}
-	return filtered
-}
-
-func groupByMonth(entries []timewarrior.Entry) map[time.Month][]timewarrior.Entry {
-	grouped := make(map[time.Month][]timewarrior.Entry)
-	for _, e := range entries {
-		month := e.Start.Month()
-		grouped[month] = append(grouped[month], e)
-	}
-	return grouped
-}
-
-func groupByWeek(entries []timewarrior.Entry) []WeekData {
-	weekMap := make(map[time.Time][]timewarrior.Entry)
-
-	for _, e := range entries {
-		start := weekStart(e.Start)
-		weekMap[start] = append(weekMap[start], e)
-	}
-
-	var weeks []WeekData
-	for weekStartDate, weekEntries := range weekMap {
-		tasks := aggregateByDescription(weekEntries)
-		byTag := aggregateByTag(weekEntries)
-		start, end := weekBounds(weekStartDate)
-
-		var total float64
-		for _, e := range weekEntries {
-			total += e.Duration().Hours()
-		}
-
-		weeks = append(weeks, WeekData{
-			WeekNum: weekNumber(weekStartDate),
-			Start:   start,
-			End:     end,
-			Tasks:   tasks,
-			ByTag:   byTag,
-			Total:   total,
-		})
-	}
-
-	sort.Slice(weeks, func(i, j int) bool {
-		return weeks[i].Start.Before(weeks[j].Start)
-	})
-
-	return weeks
-}
-
-func aggregateByDescription(entries []timewarrior.Entry) []TaskSummary {
-	taskMap := make(map[string]*TaskSummary)
-
-	for _, e := range entries {
-		desc := e.Description
-		if desc == "" {
-			desc = "(no description)"
-		}
-
-		if _, exists := taskMap[desc]; !exists {
-			taskMap[desc] = &TaskSummary{
-				Description: desc,
-				Tags:        make(map[string]bool),
-			}
-		}
-		taskMap[desc].TotalTime += e.Duration().Hours()
-		taskMap[desc].Sessions++
-		for _, tag := range e.Tags {
-			taskMap[desc].Tags[tag] = true
-		}
-	}
-
-	var tasks []TaskSummary
-	for _, t := range taskMap {
-		tasks = append(tasks, *t)
-	}
-
-	sort.Slice(tasks, func(i, j int) bool {
-		return tasks[i].TotalTime > tasks[j].TotalTime
-	})
-
-	return tasks
-}
-
-func aggregateByTag(entries []timewarrior.Entry) map[string]float64 {
-	tagTime := make(map[string]float64)
-	for _, e := range entries {
-		for _, tag := range e.Tags {
-			tagTime[tag] += e.Duration().Hours()
-		}
-		if len(e.Tags) == 0 {
-			tagTime["untagged"] += e.Duration().Hours()
-		}
-	}
-	return tagTime
-}
-
-func weekStart(t time.Time) time.Time {
-	weekday := int(t.Weekday())
-	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
-	return start.AddDate(0, 0, -weekday)
-}
-
-func weekBounds(start time.Time) (time.Time, time.Time) {
-	end := start.AddDate(0, 0, 6).Add(time.Hour*23 + time.Minute*59 + time.Second*59)
-	return start, end
-}
-
-func weekNumber(start time.Time) int {
-	startOfYear := weekStart(time.Date(start.Year(), time.January, 1, 0, 0, 0, 0, start.Location()))
-	weeks := int(start.Sub(startOfYear).Hours() / 24 / 7)
-	return weeks + 1
-}
-
-func formatDuration(hours float64) string {
-	totalMinutes := int(hours * 60)
-	h := totalMinutes / 60
-	m := totalMinutes % 60
-
-	if h == 0 {
-		return fmt.Sprintf("%dm", m)
-	}
-	if m == 0 {
-		return fmt.Sprintf("%dh", h)
-	}
-	return fmt.Sprintf("%dh %dm", h, m)
-}
-
-func progressBar(value, max float64, width int) string {
-	if max == 0 {
-		return strings.Repeat("░", width)
-	}
-	filled := int((value / max) * float64(width))
-	if filled > width {
-		filled = width
-	}
-	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
-}
-
-func writeDayReport(file *os.File, report DayReport) {
-	fmt.Fprintf(file, "# %s\n\n", report.Date.Format("Monday, Jan 2, 2006"))
-	fmt.Fprintf(file, "> **Daily Total:** %s\n\n", formatDuration(report.Total))
-
-	if len(report.ByTag) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
-		writeTagSummary(file, report.ByTag, report.Total)
-		fmt.Fprintf(file, "\n---\n\n")
-	}
-
-	if len(report.Tasks) == 0 {
-		fmt.Fprintf(file, "No entries found for this day.\n")
-		return
-	}
-
-	fmt.Fprintf(file, "| # | Task | Time | Sessions |\n")
-	fmt.Fprintf(file, "|--:|:-----|-----:|---------:|\n")
-	for i, t := range report.Tasks {
-		fmt.Fprintf(file, "| %d | %s | %s | %d |\n",
-			i+1,
-			truncate(t.Description, 55),
-			formatDuration(t.TotalTime),
-			t.Sessions)
-	}
-	fmt.Fprintf(file, "\n")
-}
-
-func writeWeekReport(file *os.File, week WeekData) {
-	fmt.Fprintf(file, "# Week %d\n", week.WeekNum)
-	fmt.Fprintf(file, "> %s → %s\n\n",
-		week.Start.Format("Mon, Jan 2"),
-		week.End.Format("Mon, Jan 2"))
-
-	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
-
-	if len(week.ByTag) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
-		writeTagSummary(file, week.ByTag, week.Total)
-		fmt.Fprintf(file, "\n---\n\n")
-	}
-
-	if len(week.Tasks) == 0 {
-		fmt.Fprintf(file, "No entries found for this week.\n")
-		return
-	}
-
-	writeWeekTasks(file, week.Tasks)
-}
-
-func writeMonthReport(file *os.File, month MonthData, year int) {
-	fmt.Fprintf(file, "# %s %d\n\n", month.Month.String(), year)
-	fmt.Fprintf(file, "> **Monthly Total:** %s\n\n", formatDuration(month.Total))
-	fmt.Fprintf(file, "---\n\n")
-
-	monthTags := make(map[string]float64)
-	for _, week := range month.Weeks {
-		for tag, hours := range week.ByTag {
-			monthTags[tag] += hours
-		}
-	}
-
-	if len(monthTags) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
-		writeTagSummary(file, monthTags, month.Total)
-		fmt.Fprintf(file, "\n---\n\n")
-	}
-
-	if len(month.Weeks) == 0 {
-		fmt.Fprintf(file, "No entries found for this month.\n")
-		return
-	}
-
-	for _, week := range month.Weeks {
-		writeWeek(file, week)
-	}
-}
-
-func writeWeekTasks(file *os.File, tasks []TaskSummary) {
-	tasksByTag := groupTasksByTag(tasks)
-
-	var tags []string
-	for tag := range tasksByTag {
-		tags = append(tags, tag)
-	}
-	sort.Slice(tags, func(i, j int) bool {
-		var totalI, totalJ float64
-		for _, t := range tasksByTag[tags[i]] {
-			totalI += t.TotalTime
-		}
-		for _, t := range tasksByTag[tags[j]] {
-			totalJ += t.TotalTime
-		}
-		return totalI > totalJ
-	})
-
-	for _, tag := range tags {
-		tasks := tasksByTag[tag]
-		var tagTotal float64
-		for _, t := range tasks {
-			tagTotal += t.TotalTime
-		}
-
-		fmt.Fprintf(file, "### %s\n", tag)
-		fmt.Fprintf(file, "**Subtotal:** %s\n\n", formatDuration(tagTotal))
-
-		fmt.Fprintf(file, "| # | Task | Time | Sessions |\n")
-		fmt.Fprintf(file, "|--:|:-----|-----:|---------:|\n")
-
-		for i, t := range tasks {
-			fmt.Fprintf(file, "| %d | %s | %s | %d |\n",
-				i+1,
-				truncate(t.Description, 55),
-				formatDuration(t.TotalTime),
-				t.Sessions)
-		}
-		fmt.Fprintf(file, "\n")
-	}
-}
-
-func writeYearIndex(report YearReport, yearDir string) error {
-	filename := filepath.Join(yearDir, "index.md")
-	file, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	fmt.Fprintf(file, "# Time Report %d\n\n", report.Year)
-	fmt.Fprintf(file, "> **Total Tracked:** %s\n\n", formatDuration(report.Total))
-
-	yearTags := make(map[string]float64)
-	for _, month := range report.Months {
-		for _, week := range month.Weeks {
-			for tag, hours := range week.ByTag {
-				yearTags[tag] += hours
-			}
-		}
-	}
-
-	if len(yearTags) > 0 {
-		fmt.Fprintf(file, "## Year Overview\n\n")
-		writeTagSummary(file, yearTags, report.Total)
-		fmt.Fprintf(file, "\n")
-	}
-
-	fmt.Fprintf(file, "---\n\n")
-	fmt.Fprintf(file, "## Months\n\n")
-
-	for _, month := range report.Months {
-		monthFile := fmt.Sprintf("%02d-%s.md", month.Month, strings.ToLower(month.Month.String()))
-		fmt.Fprintf(file, "- [%s](%s) — %s\n", month.Month.String(), monthFile, formatDuration(month.Total))
-	}
-
-	return nil
-}
-
-func writeMonthFile(month MonthData, yearDir string, year int) error {
-	filename := filepath.Join(yearDir, fmt.Sprintf("%02d-%s.md", month.Month, strings.ToLower(month.Month.String())))
-	file, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	fmt.Fprintf(file, "# %s %d\n\n", month.Month.String(), year)
-	fmt.Fprintf(file, "> **Monthly Total:** %s\n\n", formatDuration(month.Total))
-	fmt.Fprintf(file, "---\n\n")
-
-	monthTags := make(map[string]float64)
-	for _, week := range month.Weeks {
-		for tag, hours := range week.ByTag {
-			monthTags[tag] += hours
-		}
-	}
-
-	if len(monthTags) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
-		writeTagSummary(file, monthTags, month.Total)
-		fmt.Fprintf(file, "\n---\n\n")
-	}
-
-	for _, week := range month.Weeks {
-		writeWeek(file, week)
-	}
-
-	return nil
-}
-
-func writeTagSummary(file *os.File, tags map[string]float64, total float64) {
-	var tagList []string
-	for tag := range tags {
-		tagList = append(tagList, tag)
-	}
-	sort.Slice(tagList, func(i, j int) bool {
-		return tags[tagList[i]] > tags[tagList[j]]
-	})
-
-	maxTagTime := 0.0
-	for _, hours := range tags {
-		if hours > maxTagTime {
-			maxTagTime = hours
-		}
-	}
-
-	for _, tag := range tagList {
-		hours := tags[tag]
-		pct := (hours / total) * 100
-		bar := progressBar(hours, maxTagTime, 20)
-		fmt.Fprintf(file, "`%s` %s **%s** (%.0f%%)\n\n", tag, bar, formatDuration(hours), pct)
-	}
-}
-
-func writeWeek(file *os.File, week WeekData) {
-	fmt.Fprintf(file, "## Week %d\n", week.WeekNum)
-	fmt.Fprintf(file, "> %s → %s\n\n",
-		week.Start.Format("Mon, Jan 2"),
-		week.End.Format("Mon, Jan 2"))
-
-	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
-
-	if len(week.ByTag) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
-		writeTagSummary(file, week.ByTag, week.Total)
-		fmt.Fprintf(file, "\n---\n\n")
-	}
-
-	if len(week.Tasks) > 0 {
-		writeWeekTasks(file, week.Tasks)
-	}
-
-	fmt.Fprintf(file, "---\n\n")
-}
-
-func groupTasksByTag(tasks []TaskSummary) map[string][]TaskSummary {
-	grouped := make(map[string][]TaskSummary)
-
-	for _, t := range tasks {
-		if len(t.Tags) == 0 {
-			grouped["untagged"] = append(grouped["untagged"], t)
-		} else {
-			for tag := range t.Tags {
-				grouped[tag] = append(grouped[tag], t)
-			}
-		}
-	}
-
-	for tag := range grouped {
-		sort.Slice(grouped[tag], func(i, j int) bool {
-			return grouped[tag][i].TotalTime > grouped[tag][j].TotalTime
-		})
-	}
-
-	return grouped
-}
-
-func formatTags(tags map[string]bool) string {
-	var tagList []string
-	for tag := range tags {
-		tagList = append(tagList, tag)
-	}
-	sort.Strings(tagList)
-	return strings.Join(tagList, ", ")
-}
-
-func truncate(s string, maxLen int) string {
-	s = strings.ReplaceAll(s, "|", "\\|")
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
-}
-
 func PrintDayReport(entries []timewarrior.Entry, day string) error {
 	date, err := time.Parse("2006-01-02", day)
 	if err != nil {
 		return fmt.Errorf("invalid day %q (expected YYYY-MM-DD): %w", day, err)
 	}
 
-	report := buildDayReport(entries, date)
+	report := build.DayReport(entries, date)
 	return writeToStdout(func(file *os.File) {
-		writeDayReport(file, report)
+		render.DayReport(file, report)
 	})
 }
 
@@ -612,9 +52,9 @@ func PrintWeekReport(entries []timewarrior.Entry, date string) error {
 		return fmt.Errorf("invalid week date %q (expected YYYY-MM-DD): %w", date, err)
 	}
 
-	report := buildWeekReport(entries, parsed)
+	report := build.WeekReport(entries, parsed)
 	return writeToStdout(func(file *os.File) {
-		writeWeekReport(file, report)
+		render.WeekReport(file, report)
 	})
 }
 
@@ -624,14 +64,37 @@ func PrintMonthReport(entries []timewarrior.Entry, month string) error {
 		return fmt.Errorf("invalid month %q (expected YYYY-MM): %w", month, err)
 	}
 
-	report := buildMonthReport(entries, parsed.Month(), parsed.Year())
+	report := build.MonthReport(entries, parsed.Month(), parsed.Year())
 	return writeToStdout(func(file *os.File) {
-		writeMonthReport(file, report, parsed.Year())
+		render.MonthReport(file, report, parsed.Year())
 	})
 }
 
+func writeYearIndex(report model.YearReport, yearDir string) error {
+	filename := filepath.Join(yearDir, "index.md")
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	render.YearIndex(file, report)
+	return nil
+}
+
+func writeMonthFile(month model.MonthData, yearDir string, year int) error {
+	filename := filepath.Join(yearDir, fmt.Sprintf("%02d-%s.md", month.Month, strings.ToLower(month.Month.String())))
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	render.MonthFile(file, month, year)
+	return nil
+}
+
 func writeToStdout(write func(file *os.File)) error {
-	file := os.Stdout
-	write(file)
+	write(os.Stdout)
 	return nil
 }

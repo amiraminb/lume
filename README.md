@@ -65,6 +65,12 @@ go build -o lume .
 ./lume config
 ```
 
+### Zsh Autocomplete
+
+```zsh
+./lume completion zsh > "${fpath[1]}/_lume"
+```
+
 ## Output Structure
 
 ```

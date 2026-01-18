@@ -114,18 +114,18 @@ func groupByMonth(entries []timewarrior.Entry) map[time.Month][]timewarrior.Entr
 }
 
 func groupByWeek(entries []timewarrior.Entry) []WeekData {
-	weekMap := make(map[int][]timewarrior.Entry)
+	weekMap := make(map[time.Time][]timewarrior.Entry)
 
 	for _, e := range entries {
-		_, week := e.Start.ISOWeek()
-		weekMap[week] = append(weekMap[week], e)
+		start := weekStart(e.Start)
+		weekMap[start] = append(weekMap[start], e)
 	}
 
 	var weeks []WeekData
-	for weekNum, weekEntries := range weekMap {
+	for weekStartDate, weekEntries := range weekMap {
 		tasks := aggregateByDescription(weekEntries)
 		byTag := aggregateByTag(weekEntries)
-		start, end := weekBounds(weekEntries)
+		start, end := weekBounds(weekStartDate)
 
 		var total float64
 		for _, e := range weekEntries {
@@ -133,7 +133,7 @@ func groupByWeek(entries []timewarrior.Entry) []WeekData {
 		}
 
 		weeks = append(weeks, WeekData{
-			WeekNum: weekNum,
+			WeekNum: weekNumber(weekStartDate),
 			Start:   start,
 			End:     end,
 			Tasks:   tasks,
@@ -143,7 +143,7 @@ func groupByWeek(entries []timewarrior.Entry) []WeekData {
 	}
 
 	sort.Slice(weeks, func(i, j int) bool {
-		return weeks[i].WeekNum < weeks[j].WeekNum
+		return weeks[i].Start.Before(weeks[j].Start)
 	})
 
 	return weeks
@@ -196,20 +196,21 @@ func aggregateByTag(entries []timewarrior.Entry) map[string]float64 {
 	return tagTime
 }
 
-func weekBounds(entries []timewarrior.Entry) (time.Time, time.Time) {
-	if len(entries) == 0 {
-		return time.Time{}, time.Time{}
-	}
-	start, end := entries[0].Start, entries[0].End
-	for _, e := range entries {
-		if e.Start.Before(start) {
-			start = e.Start
-		}
-		if e.End.After(end) {
-			end = e.End
-		}
-	}
+func weekStart(t time.Time) time.Time {
+	weekday := int(t.Weekday())
+	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	return start.AddDate(0, 0, -weekday)
+}
+
+func weekBounds(start time.Time) (time.Time, time.Time) {
+	end := start.AddDate(0, 0, 6).Add(time.Hour*23 + time.Minute*59 + time.Second*59)
 	return start, end
+}
+
+func weekNumber(start time.Time) int {
+	startOfYear := weekStart(time.Date(start.Year(), time.January, 1, 0, 0, 0, 0, start.Location()))
+	weeks := int(start.Sub(startOfYear).Hours() / 24 / 7)
+	return weeks + 1
 }
 
 func formatDuration(hours float64) string {

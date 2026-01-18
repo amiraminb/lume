@@ -21,6 +21,11 @@ var (
 
 var reportTime string
 
+var (
+	reportFrom string
+	reportTo   string
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "lume",
 	Short: "Generate time reports from timewarrior entries",
@@ -57,6 +62,12 @@ var reportMonthCmd = &cobra.Command{
 	RunE:  runReportMonth,
 }
 
+var reportRangeCmd = &cobra.Command{
+	Use:   "range",
+	Short: "Show a report for a date range",
+	RunE:  runReportRange,
+}
+
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Configure default paths",
@@ -89,9 +100,13 @@ func init() {
 	reportWeekCmd.Flags().StringVarP(&reportTime, "time", "t", "", "week to report (YYYY-MM-DD in that week)")
 	reportMonthCmd.Flags().StringVarP(&reportTime, "time", "t", "", "month to report (YYYY-MM)")
 
+	reportRangeCmd.Flags().StringVar(&reportFrom, "from", "", "range start (YYYY-MM-DD)")
+	reportRangeCmd.Flags().StringVar(&reportTo, "to", "", "range end (YYYY-MM-DD)")
+
 	reportCmd.AddCommand(reportDayCmd)
 	reportCmd.AddCommand(reportWeekCmd)
 	reportCmd.AddCommand(reportMonthCmd)
+	reportCmd.AddCommand(reportRangeCmd)
 
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(reportCmd)
@@ -161,6 +176,19 @@ func runReportMonth(cmd *cobra.Command, args []string) error {
 	}
 
 	return report.PrintMonthReport(entries, month)
+}
+
+func runReportRange(cmd *cobra.Command, args []string) error {
+	if reportFrom == "" || reportTo == "" {
+		return fmt.Errorf("both --from and --to are required")
+	}
+
+	entries, err := timewarrior.ParseDataDir(timewDataDir)
+	if err != nil {
+		return fmt.Errorf("failed to parse timewarrior data: %w", err)
+	}
+
+	return report.PrintRangeReport(entries, reportFrom, reportTo)
 }
 
 func runConfigWizard(cmd *cobra.Command, args []string) error {

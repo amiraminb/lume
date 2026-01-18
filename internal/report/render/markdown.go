@@ -137,6 +137,34 @@ func MonthReport(file *os.File, month model.MonthData, year int) {
 	}
 }
 
+func RangeReport(file *os.File, report model.MonthData, start time.Time, end time.Time) {
+	fmt.Fprintf(file, "# %s → %s\n\n", start.Format("Jan 2, 2006"), end.AddDate(0, 0, -1).Format("Jan 2, 2006"))
+	fmt.Fprintf(file, "> **Range Total:** %s\n\n", formatDuration(report.Total))
+	fmt.Fprintf(file, "---\n\n")
+
+	rangeTags := make(map[string]float64)
+	for _, week := range report.Weeks {
+		for tag, hours := range week.ByTag {
+			rangeTags[tag] += hours
+		}
+	}
+
+	if len(rangeTags) > 0 {
+		fmt.Fprintf(file, "## Overview\n\n")
+		writeTagSummary(file, rangeTags, report.Total)
+		fmt.Fprintf(file, "\n---\n\n")
+	}
+
+	if len(report.Weeks) == 0 {
+		fmt.Fprintf(file, "No entries found for this range.\n")
+		return
+	}
+
+	for _, week := range report.Weeks {
+		WeekSection(file, week)
+	}
+}
+
 func WeekSection(file *os.File, week model.WeekData) {
 	fmt.Fprintf(file, "## Week %d\n", week.WeekNum)
 	fmt.Fprintf(file, "> %s → %s\n\n",

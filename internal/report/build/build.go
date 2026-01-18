@@ -119,6 +119,26 @@ func DayReport(entries []timewarrior.Entry, date time.Time) model.DayReport {
 	}
 }
 
+func RangeReport(entries []timewarrior.Entry, start time.Time, end time.Time) model.MonthData {
+	var rangeEntries []timewarrior.Entry
+	for _, e := range entries {
+		if !e.Start.Before(start) && e.Start.Before(end) {
+			rangeEntries = append(rangeEntries, e)
+		}
+	}
+
+	weeks := groupByWeek(rangeEntries)
+	var total float64
+	for _, w := range weeks {
+		total += w.Total
+	}
+
+	return model.MonthData{
+		Weeks: weeks,
+		Total: total,
+	}
+}
+
 func filterByYear(entries []timewarrior.Entry, year int) []timewarrior.Entry {
 	var filtered []timewarrior.Entry
 	for _, e := range entries {

@@ -70,6 +70,26 @@ func PrintMonthReport(entries []timewarrior.Entry, month string) error {
 	})
 }
 
+func PrintRangeReport(entries []timewarrior.Entry, start, end string) error {
+	startDate, err := time.Parse("2006-01-02", start)
+	if err != nil {
+		return fmt.Errorf("invalid from date %q (expected YYYY-MM-DD): %w", start, err)
+	}
+	endDate, err := time.Parse("2006-01-02", end)
+	if err != nil {
+		return fmt.Errorf("invalid to date %q (expected YYYY-MM-DD): %w", end, err)
+	}
+	if endDate.Before(startDate) {
+		return fmt.Errorf("range end must be on or after range start")
+	}
+
+	endExclusive := endDate.AddDate(0, 0, 1)
+	report := build.RangeReport(entries, startDate, endExclusive)
+	return writeToStdout(func(file *os.File) {
+		render.RangeReport(file, report, startDate, endDate)
+	})
+}
+
 func writeYearIndex(report model.YearReport, yearDir string) error {
 	filename := filepath.Join(yearDir, "index.md")
 	file, err := os.Create(filename)

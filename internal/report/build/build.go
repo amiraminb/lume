@@ -187,10 +187,13 @@ func aggregateByDescription(entries []timewarrior.Entry) []model.TaskSummary {
 			taskMap[desc] = &model.TaskSummary{
 				Description: desc,
 				Tags:        make(map[string]bool),
+				DayTotals:   make(map[time.Weekday]float64),
 			}
 		}
 		taskMap[desc].TotalTime += e.Duration().Hours()
 		taskMap[desc].Sessions++
+		weekday := e.Start.Weekday()
+		taskMap[desc].DayTotals[weekday] += e.Duration().Hours()
 		for _, tag := range e.Tags {
 			taskMap[desc].Tags[tag] = true
 		}

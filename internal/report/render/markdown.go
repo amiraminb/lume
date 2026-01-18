@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"lume/internal/report/model"
 )
@@ -75,16 +76,11 @@ func DayReport(file *os.File, report model.DayReport) {
 		return
 	}
 
-	fmt.Fprintf(file, "| # | Task | Time | Sessions |\n")
-	fmt.Fprintf(file, "|--:|:-----|-----:|---------:|\n")
-	for i, t := range report.Tasks {
-		fmt.Fprintf(file, "| %d | %s | %s | %d |\n",
-			i+1,
-			truncate(t.Description, 55),
-			formatDuration(t.TotalTime),
-			t.Sessions)
-	}
-	fmt.Fprintf(file, "\n")
+	categorized := groupTasksByCategory(report.Tasks)
+	writeCategoryTable(file, "Dev", categorized[categoryDev])
+	writeCategoryTable(file, "Meetings", categorized[categoryMeetings])
+	writeCategoryTable(file, "Knowledge", categorized[categoryKnowledge])
+	writeCategoryTable(file, "Misc", categorized[categoryMisc])
 }
 
 func WeekReport(file *os.File, week model.WeekData) {
@@ -106,7 +102,11 @@ func WeekReport(file *os.File, week model.WeekData) {
 		return
 	}
 
-	writeWeekTasks(file, week.Tasks)
+	categorized := groupTasksByCategory(week.Tasks)
+	writeCategoryWeekTable(file, "Dev", categorized[categoryDev])
+	writeCategoryWeekTable(file, "Meetings", categorized[categoryMeetings])
+	writeCategoryWeekTable(file, "Knowledge", categorized[categoryKnowledge])
+	writeCategoryWeekTable(file, "Misc", categorized[categoryMisc])
 }
 
 func MonthReport(file *os.File, month model.MonthData, year int) {
@@ -220,6 +220,108 @@ func groupTasksByTag(tasks []model.TaskSummary) map[string][]model.TaskSummary {
 	}
 
 	return grouped
+}
+
+type taskCategory string
+
+const (
+	categoryDev       taskCategory = "dev"
+	categoryMeetings  taskCategory = "meetings"
+	categoryKnowledge taskCategory = "knowledge"
+	categoryMisc      taskCategory = "misc"
+)
+
+func groupTasksByCategory(tasks []model.TaskSummary) map[taskCategory][]model.TaskSummary {
+	categorized := map[taskCategory][]model.TaskSummary{
+		categoryDev:       {},
+		categoryMeetings:  {},
+		categoryKnowledge: {},
+		categoryMisc:      {},
+	}
+
+	for _, task := range tasks {
+		matched := false
+		for tag := range task.Tags {
+			switch strings.ToLower(tag) {
+			case string(categoryDev):
+				categorized[categoryDev] = append(categorized[categoryDev], task)
+				matched = true
+			case string(categoryMeetings):
+				categorized[categoryMeetings] = append(categorized[categoryMeetings], task)
+				matched = true
+			case string(categoryKnowledge):
+				categorized[categoryKnowledge] = append(categorized[categoryKnowledge], task)
+				matched = true
+			case string(categoryMisc):
+				categorized[categoryMisc] = append(categorized[categoryMisc], task)
+				matched = true
+			}
+		}
+		if !matched {
+			categorized[categoryMisc] = append(categorized[categoryMisc], task)
+		}
+	}
+
+	for category := range categorized {
+		sort.Slice(categorized[category], func(i, j int) bool {
+			return categorized[category][i].TotalTime > categorized[category][j].TotalTime
+		})
+	}
+
+	return categorized
+}
+
+func writeCategoryTable(file *os.File, title string, tasks []model.TaskSummary) {
+	fmt.Fprintf(file, "## %s\n\n", title)
+
+	if len(tasks) == 0 {
+		fmt.Fprintf(file, "No entries found.\n\n")
+		return
+	}
+
+	fmt.Fprintf(file, "| # | Task | Time | Sessions |\n")
+	fmt.Fprintf(file, "|--:|:-----|-----:|---------:|\n")
+	for i, t := range tasks {
+		fmt.Fprintf(file, "| %d | %s | %s | %d |\n",
+			i+1,
+			truncate(t.Description, 55),
+			formatDuration(t.TotalTime),
+			t.Sessions)
+	}
+	fmt.Fprintf(file, "\n")
+}
+
+func writeCategoryWeekTable(file *os.File, title string, tasks []model.TaskSummary) {
+	fmt.Fprintf(file, "## %s\n\n", title)
+
+	if len(tasks) == 0 {
+		fmt.Fprintf(file, "No entries found.\n\n")
+		return
+	}
+
+	fmt.Fprintf(file, "| # | Task | Sun | Mon | Tue | Wed | Thu | Fri | Sat |\n")
+	fmt.Fprintf(file, "|--:|:-----|----:|----:|----:|----:|----:|----:|----:|\n")
+	for i, t := range tasks {
+		fmt.Fprintf(file, "| %d | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+			i+1,
+			truncate(t.Description, 55),
+			formatDayHours(t, time.Sunday),
+			formatDayHours(t, time.Monday),
+			formatDayHours(t, time.Tuesday),
+			formatDayHours(t, time.Wednesday),
+			formatDayHours(t, time.Thursday),
+			formatDayHours(t, time.Friday),
+			formatDayHours(t, time.Saturday))
+	}
+	fmt.Fprintf(file, "\n")
+}
+
+func formatDayHours(task model.TaskSummary, day time.Weekday) string {
+	hours := task.DayTotals[day]
+	if hours <= 0 {
+		return ""
+	}
+	return formatDuration(hours)
 }
 
 func writeTagSummary(file *os.File, tags map[string]float64, total float64) {

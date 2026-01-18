@@ -7,6 +7,7 @@ type TaskSummary struct {
 	TotalTime   float64
 	Sessions    int
 	Tags        map[string]bool
+	DayTotals   map[time.Weekday]float64
 }
 
 type WeekData struct {

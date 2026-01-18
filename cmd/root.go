@@ -17,11 +17,7 @@ var (
 	year         int
 )
 
-var (
-	reportDay   string
-	reportWeek  string
-	reportMonth string
-)
+var reportTime string
 
 var rootCmd = &cobra.Command{
 	Use:   "lume",
@@ -41,6 +37,24 @@ var reportCmd = &cobra.Command{
 	RunE:  runReport,
 }
 
+var reportDayCmd = &cobra.Command{
+	Use:   "day",
+	Short: "Show a report for a day",
+	RunE:  runReportDay,
+}
+
+var reportWeekCmd = &cobra.Command{
+	Use:   "week",
+	Short: "Show a report for a week",
+	RunE:  runReportWeek,
+}
+
+var reportMonthCmd = &cobra.Command{
+	Use:   "month",
+	Short: "Show a report for a month",
+	RunE:  runReportMonth,
+}
+
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -54,9 +68,13 @@ func init() {
 	rootCmd.Flags().StringVarP(&outputDir, "output", "o", filepath.Join(home, "wiki", "report"), "output directory for reports")
 	rootCmd.Flags().IntVarP(&year, "year", "y", time.Now().Year(), "year to generate report for")
 
-	reportCmd.Flags().StringVar(&reportDay, "day", "", "day to report (YYYY-MM-DD)")
-	reportCmd.Flags().StringVar(&reportWeek, "week", "", "week to report (YYYY-MM-DD in that week)")
-	reportCmd.Flags().StringVar(&reportMonth, "month", "", "month to report (YYYY-MM)")
+	reportDayCmd.Flags().StringVarP(&reportTime, "time", "t", "", "day to report (YYYY-MM-DD)")
+	reportWeekCmd.Flags().StringVarP(&reportTime, "time", "t", "", "week to report (YYYY-MM-DD in that week)")
+	reportMonthCmd.Flags().StringVarP(&reportTime, "time", "t", "", "month to report (YYYY-MM)")
+
+	reportCmd.AddCommand(reportDayCmd)
+	reportCmd.AddCommand(reportWeekCmd)
+	reportCmd.AddCommand(reportMonthCmd)
 
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(reportCmd)
@@ -82,30 +100,47 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 }
 
 func runReport(cmd *cobra.Command, args []string) error {
-	filters := 0
-	if reportDay != "" {
-		filters++
-	}
-	if reportWeek != "" {
-		filters++
-	}
-	if reportMonth != "" {
-		filters++
-	}
-	if filters != 1 {
-		return fmt.Errorf("exactly one of --day, --week, or --month must be provided")
-	}
+	return fmt.Errorf("use one of the report subcommands: day, week, or month")
+}
 
+func runReportDay(cmd *cobra.Command, args []string) error {
 	entries, err := timewarrior.ParseDataDir(timewDataDir)
 	if err != nil {
 		return fmt.Errorf("failed to parse timewarrior data: %w", err)
 	}
 
-	if reportDay != "" {
-		return report.PrintDayReport(entries, reportDay)
+	day := reportTime
+	if day == "" {
+		day = time.Now().Format("2006-01-02")
 	}
-	if reportWeek != "" {
-		return report.PrintWeekReport(entries, reportWeek)
+
+	return report.PrintDayReport(entries, day)
+}
+
+func runReportWeek(cmd *cobra.Command, args []string) error {
+	entries, err := timewarrior.ParseDataDir(timewDataDir)
+	if err != nil {
+		return fmt.Errorf("failed to parse timewarrior data: %w", err)
 	}
-	return report.PrintMonthReport(entries, reportMonth)
+
+	week := reportTime
+	if week == "" {
+		week = time.Now().Format("2006-01-02")
+	}
+
+	return report.PrintWeekReport(entries, week)
+}
+
+func runReportMonth(cmd *cobra.Command, args []string) error {
+	entries, err := timewarrior.ParseDataDir(timewDataDir)
+	if err != nil {
+		return fmt.Errorf("failed to parse timewarrior data: %w", err)
+	}
+
+	month := reportTime
+	if month == "" {
+		month = time.Now().Format("2006-01")
+	}
+
+	return report.PrintMonthReport(entries, month)
 }

@@ -76,6 +76,9 @@ func parseLine(line string) (Entry, bool) {
 		return Entry{}, false
 	}
 
+	start = start.In(time.Local)
+	end = end.In(time.Local)
+
 	desc, tags := parseAnnotation(matches[3])
 
 	return Entry{

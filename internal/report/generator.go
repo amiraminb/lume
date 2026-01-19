@@ -40,7 +40,7 @@ func Generate(entries []timewarrior.Entry, outputDir string, year int) error {
 }
 
 func PrintDayReport(entries []timewarrior.Entry, day string) error {
-	date, err := time.Parse("2006-01-02", day)
+	date, err := time.ParseInLocation("2006-01-02", day, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid day %q (expected YYYY-MM-DD): %w", day, err)
 	}
@@ -52,7 +52,7 @@ func PrintDayReport(entries []timewarrior.Entry, day string) error {
 }
 
 func PrintWeekReport(entries []timewarrior.Entry, date string) error {
-	parsed, err := time.Parse("2006-01-02", date)
+	parsed, err := time.ParseInLocation("2006-01-02", date, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid week date %q (expected YYYY-MM-DD): %w", date, err)
 	}
@@ -64,7 +64,7 @@ func PrintWeekReport(entries []timewarrior.Entry, date string) error {
 }
 
 func PrintMonthReport(entries []timewarrior.Entry, month string) error {
-	parsed, err := time.Parse("2006-01", month)
+	parsed, err := time.ParseInLocation("2006-01", month, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid month %q (expected YYYY-MM): %w", month, err)
 	}
@@ -76,11 +76,11 @@ func PrintMonthReport(entries []timewarrior.Entry, month string) error {
 }
 
 func PrintRangeReport(entries []timewarrior.Entry, start, end string) error {
-	startDate, err := time.Parse("2006-01-02", start)
+	startDate, err := time.ParseInLocation("2006-01-02", start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid from date %q (expected YYYY-MM-DD): %w", start, err)
 	}
-	endDate, err := time.Parse("2006-01-02", end)
+	endDate, err := time.ParseInLocation("2006-01-02", end, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid to date %q (expected YYYY-MM-DD): %w", end, err)
 	}

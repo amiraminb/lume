@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -52,9 +53,9 @@ func PrintDayReport(entries []timewarrior.Entry, day string) error {
 }
 
 func PrintWeekReport(entries []timewarrior.Entry, date string) error {
-	parsed, err := time.ParseInLocation("2006-01-02", date, time.Local)
+	parsed, err := parseWeekInput(date)
 	if err != nil {
-		return fmt.Errorf("invalid week date %q (expected YYYY-MM-DD): %w", date, err)
+		return err
 	}
 
 	report := build.WeekReport(entries, parsed)
@@ -93,6 +94,44 @@ func PrintRangeReport(entries []timewarrior.Entry, start, end string) error {
 	return writeToStdout(func(file *os.File) {
 		render.RangeReport(file, report, startDate, endDate)
 	})
+}
+
+func parseWeekInput(input string) (time.Time, error) {
+	if input == "" {
+		return time.Time{}, fmt.Errorf("week input cannot be empty")
+	}
+
+	if parsed, err := time.ParseInLocation("2006-01-02", input, time.Local); err == nil {
+		return parsed, nil
+	}
+
+	week, err := strconv.Atoi(input)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid week %q (expected YYYY-MM-DD or week number): %w", input, err)
+	}
+	if week < 1 || week > 53 {
+		return time.Time{}, fmt.Errorf("week must be between 1 and 53")
+	}
+
+	year := time.Now().In(time.Local).Year()
+	startOfYear := time.Date(year, time.January, 1, 0, 0, 0, 0, time.Local)
+	start := weekStart(startOfYear).AddDate(0, 0, (week-1)*7)
+
+	if start.Year() < year {
+		start = weekStart(time.Date(year, time.January, 1, 0, 0, 0, 0, time.Local)).AddDate(0, 0, (week-1)*7)
+	}
+
+	if start.Year() > year {
+		return time.Time{}, fmt.Errorf("week %d is outside year %d", week, year)
+	}
+
+	return start, nil
+}
+
+func weekStart(t time.Time) time.Time {
+	weekday := int(t.Weekday())
+	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	return start.AddDate(0, 0, -weekday)
 }
 
 func writeYearIndex(report model.YearReport, yearDir string) error {

@@ -327,12 +327,13 @@ func writeCategoryWeekTable(file *os.File, title string, tasks []model.TaskSumma
 		return
 	}
 
-	fmt.Fprintf(file, "| # | Task | Sun | Mon | Tue | Wed | Thu | Fri | Sat |\n")
-	fmt.Fprintf(file, "|--:|:-----|----:|----:|----:|----:|----:|----:|----:|\n")
+	fmt.Fprintf(file, "| # | Task | Time | Sun | Mon | Tue | Wed | Thu | Fri | Sat |\n")
+	fmt.Fprintf(file, "|--:|:-----|-----:|----:|----:|----:|----:|----:|----:|----:|\n")
 	for i, t := range tasks {
-		fmt.Fprintf(file, "| %d | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+		fmt.Fprintf(file, "| %d | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
 			i+1,
 			truncate(t.Description, 55),
+			formatDuration(t.TotalTime),
 			formatDayHours(t, time.Sunday),
 			formatDayHours(t, time.Monday),
 			formatDayHours(t, time.Tuesday),

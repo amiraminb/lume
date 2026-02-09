@@ -65,7 +65,6 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 	end, hasEnd := cfg.ReportEnd()
 
 	if !hasStart || !hasEnd {
-		// No date range provided — show a range report of all data.
 		if len(entries) == 0 {
 			fmt.Println("No entries found.")
 			return nil
@@ -87,6 +86,9 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 
 	days := int(end.Sub(start).Hours()/24 + 0.5)
 
+	nextMonth := start.AddDate(0, 1, 0)
+	isFullMonth := start.Day() == 1 && end.Year() == nextMonth.Year() && end.Month() == nextMonth.Month()
+
 	switch {
 	case days <= 1:
 		data := build.DayReport(entries, start)
@@ -98,7 +100,7 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 		}
 		data := build.WeekReport(allEntries, start)
 		render.WeekReport(os.Stdout, data)
-	case days <= 31:
+	case isFullMonth:
 		data := build.MonthReport(entries, start.Month(), start.Year())
 		render.MonthReport(os.Stdout, data, start.Year())
 	default:
@@ -118,11 +120,9 @@ func loadAllEntries(cfg timewarrior.TimewConfig) ([]timewarrior.Entry, error) {
 }
 
 func resolveDataDir(cfg timewarrior.TimewConfig) string {
-	// temp.db is the base timewarrior directory. Data files live in its "data" subdirectory.
 	if db := cfg.Get("temp.db"); db != "" {
 		return filepath.Join(db, "data")
 	}
-	// Fallback to default location.
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""

@@ -92,7 +92,11 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 		data := build.DayReport(entries, start)
 		render.DayReport(os.Stdout, data)
 	case days <= 7:
-		data := build.WeekReportFromRange(entries, start, end)
+		allEntries, err := loadAllEntries(cfg)
+		if err != nil {
+			return err
+		}
+		data := build.WeekReport(allEntries, start)
 		render.WeekReport(os.Stdout, data)
 	case days <= 31:
 		data := build.MonthReport(entries, start.Month(), start.Year())
@@ -105,10 +109,18 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 	return nil
 }
 
+func loadAllEntries(cfg timewarrior.TimewConfig) ([]timewarrior.Entry, error) {
+	dataDir := resolveDataDir(cfg)
+	if dataDir == "" {
+		return nil, fmt.Errorf("cannot determine timewarrior data directory")
+	}
+	return timewarrior.ParseDataDir(dataDir)
+}
+
 func resolveDataDir(cfg timewarrior.TimewConfig) string {
-	// temp.db is the data directory path provided by timewarrior.
+	// temp.db is the base timewarrior directory. Data files live in its "data" subdirectory.
 	if db := cfg.Get("temp.db"); db != "" {
-		return db
+		return filepath.Join(db, "data")
 	}
 	// Fallback to default location.
 	home, err := os.UserHomeDir()

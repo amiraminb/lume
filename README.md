@@ -1,75 +1,50 @@
 # Lume
 
-A CLI tool that generates beautiful time reports from your [Timewarrior](https://timewarrior.net/) entries.
+A [Timewarrior](https://timewarrior.net/) extension that generates beautiful time reports from your tracked entries.
 
 ## Installation
 
 ```bash
 go build -o lume .
+ln -s "$(pwd)/lume" ~/.config/timewarrior/extensions/lume
+```
+
+Add to `~/.config/timewarrior/timewarrior.cfg`:
+
+```
+reports.lume.output = ~/wiki/report
 ```
 
 ## Usage
 
 ```bash
-./lume [flags]
+timew lume :day                           # Today
+timew lume :week                          # This week
+timew lume :month                         # This month
+timew lume 2025-01-15 - 2025-01-16        # Specific day
+timew lume 2025-01 - 2025-02              # Specific month
+timew lume 2025-01-01 - 2025-06-01        # Custom range
+timew lume generate                       # Write markdown files to disk
 ```
 
-### Flags
+Report type is auto-detected from the date span:
 
-| Flag | Short | Default | Description |
-|:-----|:-----:|:--------|:------------|
-| `--output` | `-o` | `~/wiki/report` | Output directory for reports |
-| `--timewarrior` | `-t` | `~/.config/timewarrior/data` | Timewarrior data directory |
-| `--year` | `-y` | Current year | Year to generate report for |
+| Span | Report |
+|:-----|:-------|
+| 1 day | Day report with task breakdown by category |
+| 2–7 days | Week report with per-day columns |
+| 8–31 days | Month report with weekly sections |
+| 32+ days | Range report with weekly sections |
 
-### Commands
+### Configuration
 
-- `generate` - Build markdown reports for the configured year.
-- `report day` - Show the current day report (use `-t YYYY-MM-DD` to override).
-- `report week` - Show the current week report (use `-t YYYY-MM-DD` to override).
-- `report month` - Show the current month report (use `-t YYYY-MM` to override).
-- `report range` - Show a range report (use `--from` and `--to`).
-- `config` - Interactive config for default paths.
+The output directory for `generate` is configured in timewarrior's own config file (`~/.config/timewarrior/timewarrior.cfg`):
 
-### Examples
-
-```bash
-# Generate report for current year
-./lume generate
-
-# Generate report for 2024
-./lume generate --year 2024
-
-# Custom output directory
-./lume generate -o ~/documents/reports
-
-# Full custom
-./lume generate -t ~/.timewarrior/data -o ~/reports -y 2024
-
-# Day report (today)
-./lume report day
-
-# Day report for a specific date
-./lume report day -t 2026-01-18
-
-# Week report (current week)
-./lume report week
-
-# Month report (current month)
-./lume report month
-
-# Range report
-./lume report range --from 2026-01-01 --to 2026-01-31
-
-# Configure defaults interactively
-./lume config
+```
+reports.lume.output = ~/wiki/report
 ```
 
-### Zsh Autocomplete
-
-```zsh
-./lume completion zsh > "${fpath[1]}/_lume"
-```
+No separate config file is needed.
 
 ## Output Structure
 

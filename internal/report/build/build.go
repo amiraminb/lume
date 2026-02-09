@@ -96,6 +96,29 @@ func WeekReport(entries []timewarrior.Entry, date time.Time) model.WeekData {
 	}
 }
 
+// WeekReportFromRange builds a week report from pre-filtered entries using
+// the provided start/end bounds directly, without re-filtering or recomputing
+// week boundaries. Use this when the caller (e.g. timewarrior) already
+// provides the correct date range and filtered entries.
+func WeekReportFromRange(entries []timewarrior.Entry, start, end time.Time) model.WeekData {
+	tasks := aggregateByDescription(entries)
+	byTag := aggregateByTag(entries)
+
+	var total float64
+	for _, e := range entries {
+		total += e.Duration().Hours()
+	}
+
+	return model.WeekData{
+		WeekNum: weekNumber(start),
+		Start:   start,
+		End:     end.AddDate(0, 0, -1),
+		Tasks:   tasks,
+		ByTag:   byTag,
+		Total:   total,
+	}
+}
+
 func MonthReport(entries []timewarrior.Entry, month time.Month, year int) model.MonthData {
 	var monthEntries []timewarrior.Entry
 	for _, e := range entries {

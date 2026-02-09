@@ -92,7 +92,7 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 		data := build.DayReport(entries, start)
 		render.DayReport(os.Stdout, data)
 	case days <= 7:
-		data := build.WeekReport(entries, start)
+		data := build.WeekReportFromRange(entries, start, end)
 		render.WeekReport(os.Stdout, data)
 	case days <= 31:
 		data := build.MonthReport(entries, start.Month(), start.Year())

@@ -42,19 +42,16 @@ func (c TimewConfig) parseTimestamp(key string) (time.Time, bool) {
 
 // HasTag checks whether a tag is present in temp.report.tags.
 func (c TimewConfig) HasTag(tag string) bool {
-	for i := 0; ; i++ {
-		key := "temp.report.tags." + strings.Repeat(" ", 0)
-		// Tags are indexed as temp.report.tags.0, temp.report.tags.1, etc.
-		key = "temp.report.tags." + itoa(i)
-		v, ok := c.Values[key]
-		if !ok {
-			break
-		}
-		if v == tag {
+	v := c.Values["temp.report.tags"]
+	if v == "" {
+		return false
+	}
+	for _, t := range strings.Split(v, ",") {
+		if strings.TrimSpace(t) == tag {
 			return true
 		}
 	}
-	return false
+	return v == tag
 }
 
 func itoa(i int) string {

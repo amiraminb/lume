@@ -13,6 +13,7 @@ Add to `~/.config/timewarrior/timewarrior.cfg`:
 
 ```
 reports.lume.output = ~/wiki/report
+reports.lume.birthday = 04-14
 ```
 
 ## Usage
@@ -42,9 +43,13 @@ The output directory for `generate` is configured in timewarrior's own config fi
 
 ```
 reports.lume.output = ~/wiki/report
+reports.lume.birthday = 04-14
 ```
 
 No separate config file is needed.
+
+- `reports.lume.birthday` is optional and accepts `MM-DD` or `YYYY-MM-DD`.
+- Default birthday is `04-14` if not set.
 
 ## Output Structure
 

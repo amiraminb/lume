@@ -52,7 +52,12 @@ func runGenerate(cfg timewarrior.TimewConfig) error {
 	}
 	fmt.Fprintf(os.Stderr, "Found %d time entries\n", len(entries))
 
-	if err := report.Generate(entries, outputDir, 0); err != nil {
+	birthdayMonth, birthdayDay, err := cfg.Birthday()
+	if err != nil {
+		return err
+	}
+
+	if err := report.Generate(entries, outputDir, birthdayMonth, birthdayDay); err != nil {
 		return fmt.Errorf("failed to generate reports: %w", err)
 	}
 
@@ -61,6 +66,11 @@ func runGenerate(cfg timewarrior.TimewConfig) error {
 }
 
 func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
+	birthdayMonth, birthdayDay, err := cfg.Birthday()
+	if err != nil {
+		return err
+	}
+
 	start, hasStart := cfg.ReportStart()
 	end, hasEnd := cfg.ReportEnd()
 
@@ -80,7 +90,7 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 			}
 		}
 		data := build.RangeReport(entries, earliest, latest)
-		render.RangeReport(os.Stdout, data, earliest, latest)
+		render.RangeReport(os.Stdout, data, earliest, latest, birthdayMonth, birthdayDay)
 		return nil
 	}
 
@@ -92,20 +102,20 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 	switch {
 	case days <= 1:
 		data := build.DayReport(entries, start)
-		render.DayReport(os.Stdout, data)
+		render.DayReport(os.Stdout, data, birthdayMonth, birthdayDay)
 	case days <= 7:
 		allEntries, err := loadAllEntries(cfg)
 		if err != nil {
 			return err
 		}
 		data := build.WeekReport(allEntries, start)
-		render.WeekReport(os.Stdout, data)
+		render.WeekReport(os.Stdout, data, birthdayMonth, birthdayDay)
 	case isFullMonth:
 		data := build.MonthReport(entries, start.Month(), start.Year())
-		render.MonthReport(os.Stdout, data, start.Year())
+		render.MonthReport(os.Stdout, data, start.Year(), birthdayMonth, birthdayDay)
 	default:
 		data := build.RangeReport(entries, start, end)
-		render.RangeReport(os.Stdout, data, start, end)
+		render.RangeReport(os.Stdout, data, start, end, birthdayMonth, birthdayDay)
 	}
 
 	return nil

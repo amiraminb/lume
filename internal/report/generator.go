@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"lume/internal/report/build"
 	"lume/internal/report/model"
@@ -12,7 +13,7 @@ import (
 	"lume/internal/timewarrior"
 )
 
-func Generate(entries []timewarrior.Entry, outputDir string, year int) error {
+func Generate(entries []timewarrior.Entry, outputDir string, birthdayMonth time.Month, birthdayDay int) error {
 	reports := build.YearReports(entries)
 	if len(reports) == 0 {
 		return nil
@@ -29,7 +30,7 @@ func Generate(entries []timewarrior.Entry, outputDir string, year int) error {
 		}
 
 		for _, month := range report.Months {
-			if err := writeMonthFile(month, yearDir, report.Year); err != nil {
+			if err := writeMonthFile(month, yearDir, report.Year, birthdayMonth, birthdayDay); err != nil {
 				return err
 			}
 		}
@@ -50,7 +51,7 @@ func writeYearIndex(report model.YearReport, yearDir string) error {
 	return nil
 }
 
-func writeMonthFile(month model.MonthData, yearDir string, year int) error {
+func writeMonthFile(month model.MonthData, yearDir string, year int, birthdayMonth time.Month, birthdayDay int) error {
 	filename := filepath.Join(yearDir, fmt.Sprintf("%02d-%s.md", month.Month, strings.ToLower(month.Month.String())))
 	file, err := os.Create(filename)
 	if err != nil {
@@ -58,6 +59,6 @@ func writeMonthFile(month model.MonthData, yearDir string, year int) error {
 	}
 	defer file.Close()
 
-	render.MonthFile(file, month, year)
+	render.MonthFile(file, month, year, birthdayMonth, birthdayDay)
 	return nil
 }

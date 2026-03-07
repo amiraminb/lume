@@ -3,6 +3,7 @@ package timewarrior
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -47,6 +48,23 @@ func (c TimewConfig) HasTag(tag string) bool {
 		}
 	}
 	return v == tag
+}
+
+func (c TimewConfig) Birthday() (time.Month, int, error) {
+	v := strings.TrimSpace(c.Values["reports.lume.birthday"])
+	if v == "" {
+		return time.April, 14, nil
+	}
+
+	if t, err := time.Parse("01-02", v); err == nil {
+		return t.Month(), t.Day(), nil
+	}
+
+	if t, err := time.Parse("2006-01-02", v); err == nil {
+		return t.Month(), t.Day(), nil
+	}
+
+	return 0, 0, fmt.Errorf("invalid reports.lume.birthday %q (use MM-DD or YYYY-MM-DD)", v)
 }
 
 type timewInterval struct {

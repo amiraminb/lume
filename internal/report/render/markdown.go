@@ -38,7 +38,7 @@ func YearIndex(file *os.File, report model.YearReport) {
 	}
 }
 
-func MonthFile(file *os.File, month model.MonthData, year int) {
+func MonthFile(file *os.File, month model.MonthData, year int, birthdayMonth time.Month, birthdayDay int) {
 	fmt.Fprintf(file, "# %s %d\n\n", month.Month.String(), year)
 	fmt.Fprintf(file, "> **Monthly Total:** %s\n\n", formatDuration(month.Total))
 	fmt.Fprintf(file, "---\n\n")
@@ -57,12 +57,12 @@ func MonthFile(file *os.File, month model.MonthData, year int) {
 	}
 
 	for _, week := range month.Weeks {
-		WeekSection(file, week)
+		WeekSection(file, week, birthdayMonth, birthdayDay)
 	}
 }
 
-func DayReport(file *os.File, report model.DayReport) {
-	fmt.Fprintf(file, "# Day %d\n", report.Date.YearDay())
+func DayReport(file *os.File, report model.DayReport, birthdayMonth time.Month, birthdayDay int) {
+	fmt.Fprintf(file, "# Day %d\n", birthdayDayNumber(report.Date, birthdayMonth, birthdayDay))
 	fmt.Fprintf(file, "> %s\n\n", report.Date.Format("Monday, Jan 2, 2006"))
 	fmt.Fprintf(file, "> **Daily Total:** %s\n\n", formatDuration(report.Total))
 
@@ -84,8 +84,8 @@ func DayReport(file *os.File, report model.DayReport) {
 	writeCategoryTable(file, "Misc", categorized[categoryMisc])
 }
 
-func WeekReport(file *os.File, week model.WeekData) {
-	fmt.Fprintf(file, "# Week %d\n", week.WeekNum)
+func WeekReport(file *os.File, week model.WeekData, birthdayMonth time.Month, birthdayDay int) {
+	fmt.Fprintf(file, "# Week %d\n", birthdayWeekNumber(week.Start, birthdayMonth, birthdayDay))
 	fmt.Fprintf(file, "> %s → %s\n\n",
 		week.Start.Format("Mon, Jan 2"),
 		week.End.Format("Mon, Jan 2"))
@@ -110,7 +110,7 @@ func WeekReport(file *os.File, week model.WeekData) {
 	writeCategoryWeekTable(file, "Misc", categorized[categoryMisc])
 }
 
-func MonthReport(file *os.File, month model.MonthData, year int) {
+func MonthReport(file *os.File, month model.MonthData, year int, birthdayMonth time.Month, birthdayDay int) {
 	fmt.Fprintf(file, "# %s %d\n\n", month.Month.String(), year)
 	fmt.Fprintf(file, "> **Monthly Total:** %s\n\n", formatDuration(month.Total))
 	fmt.Fprintf(file, "---\n\n")
@@ -134,11 +134,11 @@ func MonthReport(file *os.File, month model.MonthData, year int) {
 	}
 
 	for _, week := range month.Weeks {
-		WeekSection(file, week)
+		WeekSection(file, week, birthdayMonth, birthdayDay)
 	}
 }
 
-func RangeReport(file *os.File, report model.MonthData, start time.Time, end time.Time) {
+func RangeReport(file *os.File, report model.MonthData, start time.Time, end time.Time, birthdayMonth time.Month, birthdayDay int) {
 	fmt.Fprintf(file, "# %s → %s\n\n", start.Format("Jan 2, 2006"), end.AddDate(0, 0, -1).Format("Jan 2, 2006"))
 	fmt.Fprintf(file, "> **Range Total:** %s\n\n", formatDuration(report.Total))
 	fmt.Fprintf(file, "---\n\n")
@@ -162,12 +162,12 @@ func RangeReport(file *os.File, report model.MonthData, start time.Time, end tim
 	}
 
 	for _, week := range report.Weeks {
-		WeekSection(file, week)
+		WeekSection(file, week, birthdayMonth, birthdayDay)
 	}
 }
 
-func WeekSection(file *os.File, week model.WeekData) {
-	fmt.Fprintf(file, "## Week %d\n", week.WeekNum)
+func WeekSection(file *os.File, week model.WeekData, birthdayMonth time.Month, birthdayDay int) {
+	fmt.Fprintf(file, "## Week %d\n", birthdayWeekNumber(week.Start, birthdayMonth, birthdayDay))
 	fmt.Fprintf(file, "> %s → %s\n\n",
 		week.Start.Format("Mon, Jan 2"),
 		week.End.Format("Mon, Jan 2"))
@@ -394,4 +394,24 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+func birthdayCycleStart(t time.Time, month time.Month, day int) time.Time {
+	start := time.Date(t.Year(), month, day, 0, 0, 0, 0, t.Location())
+	if t.Before(start) {
+		start = time.Date(t.Year()-1, month, day, 0, 0, 0, 0, t.Location())
+	}
+	return start
+}
+
+func birthdayDayNumber(t time.Time, month time.Month, day int) int {
+	start := birthdayCycleStart(t, month, day)
+	days := int(t.Sub(start).Hours() / 24)
+	return days + 1
+}
+
+func birthdayWeekNumber(t time.Time, month time.Month, day int) int {
+	start := birthdayCycleStart(t, month, day)
+	days := int(t.Sub(start).Hours() / 24)
+	return (days / 7) + 1
 }

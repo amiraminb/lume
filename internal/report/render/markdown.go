@@ -362,30 +362,18 @@ func writeTagSummary(file *os.File, tags map[string]float64, total float64) {
 		return tags[tagList[i]] > tags[tagList[j]]
 	})
 
-	maxTagTime := 0.0
-	for _, hours := range tags {
-		if hours > maxTagTime {
-			maxTagTime = hours
-		}
-	}
+	fmt.Fprintf(file, "| Category | Time | Share |\n")
+	fmt.Fprintf(file, "|:---------|-----:|------:|\n")
 
 	for _, tag := range tagList {
 		hours := tags[tag]
-		pct := (hours / total) * 100
-		bar := progressBar(hours, maxTagTime, 20)
-		fmt.Fprintf(file, "`%s` %s **%s** (%.0f%%)\n\n", tag, bar, formatDuration(hours), pct)
+		pct := 0.0
+		if total > 0 {
+			pct = (hours / total) * 100
+		}
+		fmt.Fprintf(file, "| %s | %s | %.0f%% |\n", strings.ReplaceAll(tag, "|", "\\|"), formatDuration(hours), pct)
 	}
-}
-
-func progressBar(value, max float64, width int) string {
-	if max == 0 {
-		return strings.Repeat("░", width)
-	}
-	filled := int((value / max) * float64(width))
-	if filled > width {
-		filled = width
-	}
-	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+	fmt.Fprintf(file, "\n")
 }
 
 func formatDuration(hours float64) string {

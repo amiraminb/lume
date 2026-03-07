@@ -8,7 +8,7 @@ build:
 
 install: build
 	mkdir -p $(EXTDIR)
-	ln -sf $(CURDIR)/$(BINARY) $(EXTDIR)/$(BINARY)
+	mv $(CURDIR)/$(BINARY) $(EXTDIR)/$(BINARY)
 
 uninstall:
 	rm -f $(EXTDIR)/$(BINARY)

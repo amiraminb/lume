@@ -62,7 +62,8 @@ func MonthFile(file *os.File, month model.MonthData, year int) {
 }
 
 func DayReport(file *os.File, report model.DayReport) {
-	fmt.Fprintf(file, "# %s\n\n", report.Date.Format("Monday, Jan 2, 2006"))
+	fmt.Fprintf(file, "# Day %d\n", report.Date.YearDay())
+	fmt.Fprintf(file, "> %s\n\n", report.Date.Format("Monday, Jan 2, 2006"))
 	fmt.Fprintf(file, "> **Daily Total:** %s\n\n", formatDuration(report.Total))
 
 	if len(report.ByTag) > 0 {
@@ -214,12 +215,11 @@ func writeWeekTasks(file *os.File, tasks []model.TaskSummary) {
 		fmt.Fprintf(file, "### %s\n", tag)
 		fmt.Fprintf(file, "**Subtotal:** %s\n\n", formatDuration(tagTotal))
 
-		fmt.Fprintf(file, "| # | Task | Time | Sessions |\n")
-		fmt.Fprintf(file, "|--:|:-----|-----:|---------:|\n")
+		fmt.Fprintf(file, "| Task | Time | Sessions |\n")
+		fmt.Fprintf(file, "|:-----|-----:|---------:|\n")
 
-		for i, t := range tasks {
-			fmt.Fprintf(file, "| %d | %s | %s | %d |\n",
-				i+1,
+		for _, t := range tasks {
+			fmt.Fprintf(file, "| %s | %s | %d |\n",
 				truncate(t.Description, 55),
 				formatDuration(t.TotalTime),
 				t.Sessions)
@@ -307,11 +307,10 @@ func writeCategoryTable(file *os.File, title string, tasks []model.TaskSummary) 
 		return
 	}
 
-	fmt.Fprintf(file, "| # | Task | Time | Sessions |\n")
-	fmt.Fprintf(file, "|--:|:-----|-----:|---------:|\n")
-	for i, t := range tasks {
-		fmt.Fprintf(file, "| %d | %s | %s | %d |\n",
-			i+1,
+	fmt.Fprintf(file, "| Task | Time | Sessions |\n")
+	fmt.Fprintf(file, "|:-----|-----:|---------:|\n")
+	for _, t := range tasks {
+		fmt.Fprintf(file, "| %s | %s | %d |\n",
 			truncate(t.Description, 55),
 			formatDuration(t.TotalTime),
 			t.Sessions)
@@ -327,11 +326,10 @@ func writeCategoryWeekTable(file *os.File, title string, tasks []model.TaskSumma
 		return
 	}
 
-	fmt.Fprintf(file, "| # | Task | Time | Sun | Mon | Tue | Wed | Thu | Fri | Sat |\n")
-	fmt.Fprintf(file, "|--:|:-----|-----:|----:|----:|----:|----:|----:|----:|----:|\n")
-	for i, t := range tasks {
-		fmt.Fprintf(file, "| %d | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
-			i+1,
+	fmt.Fprintf(file, "| Task | Time | Sun | Mon | Tue | Wed | Thu | Fri | Sat |\n")
+	fmt.Fprintf(file, "|:-----|-----:|----:|----:|----:|----:|----:|----:|----:|\n")
+	for _, t := range tasks {
+		fmt.Fprintf(file, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
 			truncate(t.Description, 55),
 			formatDuration(t.TotalTime),
 			formatDayHours(t, time.Sunday),

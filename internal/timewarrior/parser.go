@@ -96,9 +96,8 @@ func parseAnnotation(annotation string) (string, []string) {
 	parts := splitAnnotation(annotation)
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
-		if strings.HasPrefix(part, "\"desc:") {
-			description = strings.TrimSuffix(strings.TrimPrefix(part, "\"desc:"), "\"")
-		} else if strings.HasPrefix(part, "desc:") {
+		part = strings.Trim(part, "\"")
+		if strings.HasPrefix(part, "desc:") {
 			description = part[5:]
 		} else if part != "" && !strings.HasPrefix(part, "#") {
 			tags = append(tags, part)

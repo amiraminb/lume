@@ -239,7 +239,11 @@ func WeekSection(file *os.File, week model.WeekData, birthdayMonth time.Month, b
 	}
 
 	if len(week.Tasks) > 0 {
-		writeWeekTasks(file, week.Tasks)
+		categorized := groupTasksByCategory(week.Tasks)
+		writeCategoryTable(file, "Dev", categorized[categoryDev])
+		writeCategoryTable(file, "Meetings", categorized[categoryMeetings])
+		writeCategoryTable(file, "Knowledge", categorized[categoryKnowledge])
+		writeCategoryTable(file, "Misc", categorized[categoryMisc])
 	}
 
 	fmt.Fprintf(file, "---\n\n")
@@ -417,12 +421,14 @@ func writeCategoryTable(file *os.File, title string, tasks []model.TaskSummary) 
 		return
 	}
 
-	fmt.Fprintf(file, "| Task | Project | Time | Sessions |\n")
-	fmt.Fprintf(file, "|:-----|:--------|-----:|---------:|\n")
-	for _, t := range tasks {
+	sorted := sortTasksByProject(tasks)
+
+	fmt.Fprintf(file, "| Project | Task | Time | Sessions |\n")
+	fmt.Fprintf(file, "|:--------|:-----|-----:|---------:|\n")
+	for _, t := range sorted {
 		fmt.Fprintf(file, "| %s | %s | %s | %d |\n",
+			truncate(projectName(t), 24),
 			truncate(t.Description, 55),
-			truncate(t.Project, 24),
 			formatDuration(t.TotalTime),
 			t.Sessions)
 	}
@@ -437,12 +443,14 @@ func writeCategoryWeekTable(file *os.File, title string, tasks []model.TaskSumma
 		return
 	}
 
-	fmt.Fprintf(file, "| Task | Project | Time | Sun | Mon | Tue | Wed | Thu | Fri | Sat |\n")
-	fmt.Fprintf(file, "|:-----|:--------|-----:|----:|----:|----:|----:|----:|----:|----:|\n")
-	for _, t := range tasks {
+	sorted := sortTasksByProject(tasks)
+
+	fmt.Fprintf(file, "| Project | Task | Time | Sun | Mon | Tue | Wed | Thu | Fri | Sat |\n")
+	fmt.Fprintf(file, "|:--------|:-----|-----:|----:|----:|----:|----:|----:|----:|----:|\n")
+	for _, t := range sorted {
 		fmt.Fprintf(file, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+			truncate(projectName(t), 24),
 			truncate(t.Description, 55),
-			truncate(t.Project, 24),
 			formatDuration(t.TotalTime),
 			formatDayHours(t, time.Sunday),
 			formatDayHours(t, time.Monday),
@@ -461,6 +469,29 @@ func formatDayHours(task model.TaskSummary, day time.Weekday) string {
 		return ""
 	}
 	return formatDuration(hours)
+}
+
+func projectName(task model.TaskSummary) string {
+	if strings.TrimSpace(task.Project) == "" {
+		return "unknown"
+	}
+	return task.Project
+}
+
+func sortTasksByProject(tasks []model.TaskSummary) []model.TaskSummary {
+	sorted := append([]model.TaskSummary(nil), tasks...)
+	sort.Slice(sorted, func(i, j int) bool {
+		pi := projectName(sorted[i])
+		pj := projectName(sorted[j])
+		if pi != pj {
+			return pi < pj
+		}
+		if sorted[i].TotalTime != sorted[j].TotalTime {
+			return sorted[i].TotalTime > sorted[j].TotalTime
+		}
+		return sorted[i].Description < sorted[j].Description
+	})
+	return sorted
 }
 
 func writeTagSummary(file *os.File, tags map[string]float64, total float64) {

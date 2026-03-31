@@ -15,12 +15,22 @@ func YearIndex(file *os.File, report model.YearReport) {
 	fmt.Fprintf(file, "> **Total Tracked:** %s\n\n", formatDuration(report.Total))
 
 	yearTags := make(map[string]float64)
+	yearProjects := make(map[string]float64)
 	for _, month := range report.Months {
 		for _, week := range month.Weeks {
 			for tag, hours := range week.ByTag {
 				yearTags[tag] += hours
 			}
+			for project, hours := range week.ByProject {
+				yearProjects[project] += hours
+			}
 		}
+	}
+
+	if len(yearProjects) > 0 {
+		fmt.Fprintf(file, "## Projects\n\n")
+		writeProjectSummary(file, yearProjects, report.Total)
+		fmt.Fprintf(file, "\n")
 	}
 
 	if len(yearTags) > 0 {
@@ -44,10 +54,20 @@ func MonthFile(file *os.File, month model.MonthData, year int, birthdayMonth tim
 	fmt.Fprintf(file, "---\n\n")
 
 	monthTags := make(map[string]float64)
+	monthProjects := make(map[string]float64)
 	for _, week := range month.Weeks {
 		for tag, hours := range week.ByTag {
 			monthTags[tag] += hours
 		}
+		for project, hours := range week.ByProject {
+			monthProjects[project] += hours
+		}
+	}
+
+	if len(monthProjects) > 0 {
+		fmt.Fprintf(file, "## Projects\n\n")
+		writeProjectSummary(file, monthProjects, month.Total)
+		fmt.Fprintf(file, "\n---\n\n")
 	}
 
 	if len(monthTags) > 0 {
@@ -65,6 +85,12 @@ func DayReport(file *os.File, report model.DayReport, birthdayMonth time.Month, 
 	fmt.Fprintf(file, "# Day %d\n", birthdayDayNumber(report.Date, birthdayMonth, birthdayDay))
 	fmt.Fprintf(file, "> %s\n\n", report.Date.Format("Monday, Jan 2, 2006"))
 	fmt.Fprintf(file, "> **Daily Total:** %s\n\n", formatDuration(report.Total))
+
+	if len(report.ByProject) > 0 {
+		fmt.Fprintf(file, "## Projects\n\n")
+		writeProjectSummary(file, report.ByProject, report.Total)
+		fmt.Fprintf(file, "\n")
+	}
 
 	if len(report.ByTag) > 0 {
 		fmt.Fprintf(file, "## Overview\n\n")
@@ -92,6 +118,12 @@ func WeekReport(file *os.File, week model.WeekData, birthdayMonth time.Month, bi
 
 	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
 
+	if len(week.ByProject) > 0 {
+		fmt.Fprintf(file, "## Projects\n\n")
+		writeProjectSummary(file, week.ByProject, week.Total)
+		fmt.Fprintf(file, "\n")
+	}
+
 	if len(week.ByTag) > 0 {
 		fmt.Fprintf(file, "## Overview\n\n")
 		writeTagSummary(file, week.ByTag, week.Total)
@@ -116,10 +148,20 @@ func MonthReport(file *os.File, month model.MonthData, year int, birthdayMonth t
 	fmt.Fprintf(file, "---\n\n")
 
 	monthTags := make(map[string]float64)
+	monthProjects := make(map[string]float64)
 	for _, week := range month.Weeks {
 		for tag, hours := range week.ByTag {
 			monthTags[tag] += hours
 		}
+		for project, hours := range week.ByProject {
+			monthProjects[project] += hours
+		}
+	}
+
+	if len(monthProjects) > 0 {
+		fmt.Fprintf(file, "## Projects\n\n")
+		writeProjectSummary(file, monthProjects, month.Total)
+		fmt.Fprintf(file, "\n---\n\n")
 	}
 
 	if len(monthTags) > 0 {
@@ -144,10 +186,20 @@ func RangeReport(file *os.File, report model.MonthData, start time.Time, end tim
 	fmt.Fprintf(file, "---\n\n")
 
 	rangeTags := make(map[string]float64)
+	rangeProjects := make(map[string]float64)
 	for _, week := range report.Weeks {
 		for tag, hours := range week.ByTag {
 			rangeTags[tag] += hours
 		}
+		for project, hours := range week.ByProject {
+			rangeProjects[project] += hours
+		}
+	}
+
+	if len(rangeProjects) > 0 {
+		fmt.Fprintf(file, "## Projects\n\n")
+		writeProjectSummary(file, rangeProjects, report.Total)
+		fmt.Fprintf(file, "\n---\n\n")
 	}
 
 	if len(rangeTags) > 0 {
@@ -174,6 +226,12 @@ func WeekSection(file *os.File, week model.WeekData, birthdayMonth time.Month, b
 
 	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
 
+	if len(week.ByProject) > 0 {
+		fmt.Fprintf(file, "## Projects\n\n")
+		writeProjectSummary(file, week.ByProject, week.Total)
+		fmt.Fprintf(file, "\n")
+	}
+
 	if len(week.ByTag) > 0 {
 		fmt.Fprintf(file, "## Overview\n\n")
 		writeTagSummary(file, week.ByTag, week.Total)
@@ -196,58 +254,110 @@ func writeWeekTasks(file *os.File, tasks []model.TaskSummary) {
 	}
 	sort.Slice(tags, func(i, j int) bool {
 		var totalI, totalJ float64
-		for _, t := range tasksByTag[tags[i]] {
-			totalI += t.TotalTime
+		for _, groupedTasks := range tasksByTag[tags[i]] {
+			totalI += sumTaskHours(groupedTasks)
 		}
-		for _, t := range tasksByTag[tags[j]] {
-			totalJ += t.TotalTime
+		for _, groupedTasks := range tasksByTag[tags[j]] {
+			totalJ += sumTaskHours(groupedTasks)
 		}
 		return totalI > totalJ
 	})
 
 	for _, tag := range tags {
-		tasks := tasksByTag[tag]
+		projectGroups := tasksByTag[tag]
 		var tagTotal float64
-		for _, t := range tasks {
-			tagTotal += t.TotalTime
+		for _, groupedTasks := range projectGroups {
+			for _, t := range groupedTasks {
+				tagTotal += t.TotalTime
+			}
 		}
 
 		fmt.Fprintf(file, "### %s\n", tag)
 		fmt.Fprintf(file, "**Subtotal:** %s\n\n", formatDuration(tagTotal))
 
-		fmt.Fprintf(file, "| Task | Time | Sessions |\n")
-		fmt.Fprintf(file, "|:-----|-----:|---------:|\n")
+		projects := sortedProjects(projectGroups)
+		for _, project := range projects {
+			projectTasks := projectGroups[project]
+			projectTotal := sumTaskHours(projectTasks)
 
-		for _, t := range tasks {
-			fmt.Fprintf(file, "| %s | %s | %d |\n",
-				truncate(t.Description, 55),
-				formatDuration(t.TotalTime),
-				t.Sessions)
+			fmt.Fprintf(file, "#### project:%s\n", project)
+			fmt.Fprintf(file, "**Project Subtotal:** %s\n\n", formatDuration(projectTotal))
+
+			fmt.Fprintf(file, "| Task | Time | Sessions |\n")
+			fmt.Fprintf(file, "|:-----|-----:|---------:|\n")
+
+			for _, t := range projectTasks {
+				fmt.Fprintf(file, "| %s | %s | %d |\n",
+					truncate(t.Description, 55),
+					formatDuration(t.TotalTime),
+					t.Sessions)
+			}
+			fmt.Fprintf(file, "\n")
 		}
-		fmt.Fprintf(file, "\n")
 	}
 }
 
-func groupTasksByTag(tasks []model.TaskSummary) map[string][]model.TaskSummary {
-	grouped := make(map[string][]model.TaskSummary)
+func groupTasksByTag(tasks []model.TaskSummary) map[string]map[string][]model.TaskSummary {
+	grouped := make(map[string]map[string][]model.TaskSummary)
 
 	for _, t := range tasks {
-		if len(t.Tags) == 0 {
-			grouped["untagged"] = append(grouped["untagged"], t)
-		} else {
-			for tag := range t.Tags {
-				grouped[tag] = append(grouped[tag], t)
+		tags := taskNonProjectTags(t)
+		project := t.Project
+		if project == "" {
+			project = "unknown"
+		}
+
+		for _, tag := range tags {
+			if _, ok := grouped[tag]; !ok {
+				grouped[tag] = make(map[string][]model.TaskSummary)
 			}
+			grouped[tag][project] = append(grouped[tag][project], t)
 		}
 	}
 
 	for tag := range grouped {
-		sort.Slice(grouped[tag], func(i, j int) bool {
-			return grouped[tag][i].TotalTime > grouped[tag][j].TotalTime
-		})
+		for project := range grouped[tag] {
+			sort.Slice(grouped[tag][project], func(i, j int) bool {
+				return grouped[tag][project][i].TotalTime > grouped[tag][project][j].TotalTime
+			})
+		}
 	}
 
 	return grouped
+}
+
+func taskNonProjectTags(task model.TaskSummary) []string {
+	var tags []string
+	for tag := range task.Tags {
+		if strings.HasPrefix(tag, "project:") {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	if len(tags) == 0 {
+		return []string{"untagged"}
+	}
+	sort.Strings(tags)
+	return tags
+}
+
+func sortedProjects(projectGroups map[string][]model.TaskSummary) []string {
+	var projects []string
+	for project := range projectGroups {
+		projects = append(projects, project)
+	}
+	sort.Slice(projects, func(i, j int) bool {
+		return sumTaskHours(projectGroups[projects[i]]) > sumTaskHours(projectGroups[projects[j]])
+	})
+	return projects
+}
+
+func sumTaskHours(tasks []model.TaskSummary) float64 {
+	var total float64
+	for _, t := range tasks {
+		total += t.TotalTime
+	}
+	return total
 }
 
 type taskCategory string
@@ -307,11 +417,12 @@ func writeCategoryTable(file *os.File, title string, tasks []model.TaskSummary) 
 		return
 	}
 
-	fmt.Fprintf(file, "| Task | Time | Sessions |\n")
-	fmt.Fprintf(file, "|:-----|-----:|---------:|\n")
+	fmt.Fprintf(file, "| Task | Project | Time | Sessions |\n")
+	fmt.Fprintf(file, "|:-----|:--------|-----:|---------:|\n")
 	for _, t := range tasks {
-		fmt.Fprintf(file, "| %s | %s | %d |\n",
+		fmt.Fprintf(file, "| %s | %s | %s | %d |\n",
 			truncate(t.Description, 55),
+			truncate(t.Project, 24),
 			formatDuration(t.TotalTime),
 			t.Sessions)
 	}
@@ -326,11 +437,12 @@ func writeCategoryWeekTable(file *os.File, title string, tasks []model.TaskSumma
 		return
 	}
 
-	fmt.Fprintf(file, "| Task | Time | Sun | Mon | Tue | Wed | Thu | Fri | Sat |\n")
-	fmt.Fprintf(file, "|:-----|-----:|----:|----:|----:|----:|----:|----:|----:|\n")
+	fmt.Fprintf(file, "| Task | Project | Time | Sun | Mon | Tue | Wed | Thu | Fri | Sat |\n")
+	fmt.Fprintf(file, "|:-----|:--------|-----:|----:|----:|----:|----:|----:|----:|----:|\n")
 	for _, t := range tasks {
-		fmt.Fprintf(file, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+		fmt.Fprintf(file, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
 			truncate(t.Description, 55),
+			truncate(t.Project, 24),
 			formatDuration(t.TotalTime),
 			formatDayHours(t, time.Sunday),
 			formatDayHours(t, time.Monday),
@@ -370,6 +482,29 @@ func writeTagSummary(file *os.File, tags map[string]float64, total float64) {
 			pct = (hours / total) * 100
 		}
 		fmt.Fprintf(file, "| %s | %s | %.0f%% |\n", strings.ReplaceAll(tag, "|", "\\|"), formatDuration(hours), pct)
+	}
+	fmt.Fprintf(file, "\n")
+}
+
+func writeProjectSummary(file *os.File, projects map[string]float64, total float64) {
+	var projectList []string
+	for project := range projects {
+		projectList = append(projectList, project)
+	}
+	sort.Slice(projectList, func(i, j int) bool {
+		return projects[projectList[i]] > projects[projectList[j]]
+	})
+
+	fmt.Fprintf(file, "| Project | Time | Share |\n")
+	fmt.Fprintf(file, "|:--------|-----:|------:|\n")
+
+	for _, project := range projectList {
+		hours := projects[project]
+		pct := 0.0
+		if total > 0 {
+			pct = (hours / total) * 100
+		}
+		fmt.Fprintf(file, "| %s | %s | %.0f%% |\n", strings.ReplaceAll(project, "|", "\\|"), formatDuration(hours), pct)
 	}
 	fmt.Fprintf(file, "\n")
 }

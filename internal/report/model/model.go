@@ -4,6 +4,7 @@ import "time"
 
 type TaskSummary struct {
 	Description string
+	Project     string
 	TotalTime   float64
 	Sessions    int
 	Tags        map[string]bool
@@ -11,12 +12,13 @@ type TaskSummary struct {
 }
 
 type WeekData struct {
-	WeekNum int
-	Start   time.Time
-	End     time.Time
-	Tasks   []TaskSummary
-	ByTag   map[string]float64
-	Total   float64
+	WeekNum   int
+	Start     time.Time
+	End       time.Time
+	Tasks     []TaskSummary
+	ByTag     map[string]float64
+	ByProject map[string]float64
+	Total     float64
 }
 
 type MonthData struct {
@@ -32,8 +34,9 @@ type YearReport struct {
 }
 
 type DayReport struct {
-	Date  time.Time
-	Tasks []TaskSummary
-	ByTag map[string]float64
-	Total float64
+	Date      time.Time
+	Tasks     []TaskSummary
+	ByTag     map[string]float64
+	ByProject map[string]float64
+	Total     float64
 }

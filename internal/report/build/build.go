@@ -2,6 +2,7 @@ package build
 
 import (
 	"sort"
+	"strings"
 	"time"
 
 	"lume/internal/report/model"
@@ -79,6 +80,7 @@ func WeekReport(entries []timewarrior.Entry, date time.Time) model.WeekData {
 
 	tasks := aggregateByDescription(weekEntries)
 	byTag := aggregateByTag(weekEntries)
+	byProject := aggregateByProject(weekEntries)
 	weekStartDate, weekEndDate := weekBounds(start)
 
 	var total float64
@@ -87,12 +89,13 @@ func WeekReport(entries []timewarrior.Entry, date time.Time) model.WeekData {
 	}
 
 	return model.WeekData{
-		WeekNum: weekNumber(start),
-		Start:   weekStartDate,
-		End:     weekEndDate,
-		Tasks:   tasks,
-		ByTag:   byTag,
-		Total:   total,
+		WeekNum:   weekNumber(start),
+		Start:     weekStartDate,
+		End:       weekEndDate,
+		Tasks:     tasks,
+		ByTag:     byTag,
+		ByProject: byProject,
+		Total:     total,
 	}
 }
 
@@ -130,16 +133,18 @@ func DayReport(entries []timewarrior.Entry, date time.Time) model.DayReport {
 
 	tasks := aggregateByDescription(dayEntries)
 	byTag := aggregateByTag(dayEntries)
+	byProject := aggregateByProject(dayEntries)
 	var total float64
 	for _, e := range dayEntries {
 		total += e.Duration().Hours()
 	}
 
 	return model.DayReport{
-		Date:  start,
-		Tasks: tasks,
-		ByTag: byTag,
-		Total: total,
+		Date:      start,
+		Tasks:     tasks,
+		ByTag:     byTag,
+		ByProject: byProject,
+		Total:     total,
 	}
 }
 
@@ -194,6 +199,7 @@ func groupByWeek(entries []timewarrior.Entry) []model.WeekData {
 	for weekStartDate, weekEntries := range weekMap {
 		tasks := aggregateByDescription(weekEntries)
 		byTag := aggregateByTag(weekEntries)
+		byProject := aggregateByProject(weekEntries)
 		start, end := weekBounds(weekStartDate)
 
 		var total float64
@@ -202,12 +208,13 @@ func groupByWeek(entries []timewarrior.Entry) []model.WeekData {
 		}
 
 		weeks = append(weeks, model.WeekData{
-			WeekNum: weekNumber(weekStartDate),
-			Start:   start,
-			End:     end,
-			Tasks:   tasks,
-			ByTag:   byTag,
-			Total:   total,
+			WeekNum:   weekNumber(weekStartDate),
+			Start:     start,
+			End:       end,
+			Tasks:     tasks,
+			ByTag:     byTag,
+			ByProject: byProject,
+			Total:     total,
 		})
 	}
 
@@ -226,20 +233,23 @@ func aggregateByDescription(entries []timewarrior.Entry) []model.TaskSummary {
 		if desc == "" {
 			desc = "(no description)"
 		}
+		project := projectFromTags(e.Tags)
+		key := project + "\x00" + desc
 
-		if _, exists := taskMap[desc]; !exists {
-			taskMap[desc] = &model.TaskSummary{
+		if _, exists := taskMap[key]; !exists {
+			taskMap[key] = &model.TaskSummary{
 				Description: desc,
+				Project:     project,
 				Tags:        make(map[string]bool),
 				DayTotals:   make(map[time.Weekday]float64),
 			}
 		}
-		taskMap[desc].TotalTime += e.Duration().Hours()
-		taskMap[desc].Sessions++
+		taskMap[key].TotalTime += e.Duration().Hours()
+		taskMap[key].Sessions++
 		weekday := e.Start.Weekday()
-		taskMap[desc].DayTotals[weekday] += e.Duration().Hours()
+		taskMap[key].DayTotals[weekday] += e.Duration().Hours()
 		for _, tag := range e.Tags {
-			taskMap[desc].Tags[tag] = true
+			taskMap[key].Tags[tag] = true
 		}
 	}
 
@@ -255,17 +265,43 @@ func aggregateByDescription(entries []timewarrior.Entry) []model.TaskSummary {
 	return tasks
 }
 
+func aggregateByProject(entries []timewarrior.Entry) map[string]float64 {
+	projectTime := make(map[string]float64)
+	for _, e := range entries {
+		project := projectFromTags(e.Tags)
+		projectTime[project] += e.Duration().Hours()
+	}
+	return projectTime
+}
+
 func aggregateByTag(entries []timewarrior.Entry) map[string]float64 {
 	tagTime := make(map[string]float64)
 	for _, e := range entries {
+		hasNonProjectTag := false
 		for _, tag := range e.Tags {
+			if strings.HasPrefix(tag, "project:") {
+				continue
+			}
+			hasNonProjectTag = true
 			tagTime[tag] += e.Duration().Hours()
 		}
-		if len(e.Tags) == 0 {
+		if !hasNonProjectTag {
 			tagTime["untagged"] += e.Duration().Hours()
 		}
 	}
 	return tagTime
+}
+
+func projectFromTags(tags []string) string {
+	for _, tag := range tags {
+		if strings.HasPrefix(tag, "project:") {
+			name := strings.TrimPrefix(tag, "project:")
+			if name != "" {
+				return name
+			}
+		}
+	}
+	return "unknown"
 }
 
 func weekStart(t time.Time) time.Time {

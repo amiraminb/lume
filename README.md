@@ -4,9 +4,29 @@ A [Timewarrior](https://timewarrior.net/) extension that generates beautiful tim
 
 ## Installation
 
+### Install script (recommended)
+
 ```bash
-go build -o lume .
-ln -s "$(pwd)/lume" ~/.config/timewarrior/extensions/lume
+curl -fsSL https://raw.githubusercontent.com/amiraminb/lume/main/install.sh | bash
+```
+
+Downloads the latest release for your OS/arch and places the binary at `~/.config/timewarrior/extensions/lume`.
+
+### go install
+
+```bash
+go install github.com/amiraminb/lume@latest
+ln -sf "$(go env GOBIN)/lume" ~/.config/timewarrior/extensions/lume
+```
+
+(If `GOBIN` is unset, the binary lands in `$(go env GOPATH)/bin`.)
+
+### From source
+
+```bash
+git clone https://github.com/amiraminb/lume
+cd lume
+make install
 ```
 
 Add to `~/.config/timewarrior/timewarrior.cfg`:

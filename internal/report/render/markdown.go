@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"lume/internal/report/model"
+	"github.com/amiraminb/lume/internal/report/model"
 )
 
 func YearIndex(file *os.File, report model.YearReport) {

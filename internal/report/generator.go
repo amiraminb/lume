@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"lume/internal/report/build"
-	"lume/internal/report/model"
-	"lume/internal/report/render"
-	"lume/internal/timewarrior"
+	"github.com/amiraminb/lume/internal/report/build"
+	"github.com/amiraminb/lume/internal/report/model"
+	"github.com/amiraminb/lume/internal/report/render"
+	"github.com/amiraminb/lume/internal/timewarrior"
 )
 
 func Generate(entries []timewarrior.Entry, outputDir string, birthdayMonth time.Month, birthdayDay int) error {

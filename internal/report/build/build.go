@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"lume/internal/report/model"
-	"lume/internal/timewarrior"
+	"github.com/amiraminb/lume/internal/report/model"
+	"github.com/amiraminb/lume/internal/timewarrior"
 )
 
 func YearReport(entries []timewarrior.Entry, year int) model.YearReport {

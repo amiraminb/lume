@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"lume/internal/report"
-	"lume/internal/report/build"
-	"lume/internal/report/render"
-	"lume/internal/timewarrior"
+	"github.com/amiraminb/lume/internal/report"
+	"github.com/amiraminb/lume/internal/report/build"
+	"github.com/amiraminb/lume/internal/report/render"
+	"github.com/amiraminb/lume/internal/timewarrior"
 )
 
 func main() {

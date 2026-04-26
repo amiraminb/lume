@@ -28,13 +28,11 @@ func YearIndex(file *os.File, report model.YearReport) {
 	}
 
 	if len(yearProjects) > 0 {
-		fmt.Fprintf(file, "## Projects\n\n")
 		writeProjectSummary(file, yearProjects, report.Total)
 		fmt.Fprintf(file, "\n")
 	}
 
 	if len(yearTags) > 0 {
-		fmt.Fprintf(file, "## Year Overview\n\n")
 		writeTagSummary(file, yearTags, report.Total)
 		fmt.Fprintf(file, "\n")
 	}
@@ -65,13 +63,11 @@ func MonthFile(file *os.File, month model.MonthData, year int, birthdayMonth tim
 	}
 
 	if len(monthProjects) > 0 {
-		fmt.Fprintf(file, "## Projects\n\n")
 		writeProjectSummary(file, monthProjects, month.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 
 	if len(monthTags) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
 		writeTagSummary(file, monthTags, month.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
@@ -87,13 +83,11 @@ func DayReport(file *os.File, report model.DayReport, birthdayMonth time.Month, 
 	fmt.Fprintf(file, "> **Daily Total:** %s\n\n", formatDuration(report.Total))
 
 	if len(report.ByProject) > 0 {
-		fmt.Fprintf(file, "## Projects\n\n")
 		writeProjectSummary(file, report.ByProject, report.Total)
 		fmt.Fprintf(file, "\n")
 	}
 
 	if len(report.ByTag) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
 		writeTagSummary(file, report.ByTag, report.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
@@ -119,13 +113,11 @@ func WeekReport(file *os.File, week model.WeekData, birthdayMonth time.Month, bi
 	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
 
 	if len(week.ByProject) > 0 {
-		fmt.Fprintf(file, "## Projects\n\n")
 		writeProjectSummary(file, week.ByProject, week.Total)
 		fmt.Fprintf(file, "\n")
 	}
 
 	if len(week.ByTag) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
 		writeTagSummary(file, week.ByTag, week.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
@@ -159,13 +151,11 @@ func MonthReport(file *os.File, month model.MonthData, year int, birthdayMonth t
 	}
 
 	if len(monthProjects) > 0 {
-		fmt.Fprintf(file, "## Projects\n\n")
 		writeProjectSummary(file, monthProjects, month.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 
 	if len(monthTags) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
 		writeTagSummary(file, monthTags, month.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
@@ -197,13 +187,11 @@ func RangeReport(file *os.File, report model.MonthData, start time.Time, end tim
 	}
 
 	if len(rangeProjects) > 0 {
-		fmt.Fprintf(file, "## Projects\n\n")
 		writeProjectSummary(file, rangeProjects, report.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 
 	if len(rangeTags) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
 		writeTagSummary(file, rangeTags, report.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
@@ -226,14 +214,14 @@ func WeekSection(file *os.File, week model.WeekData, birthdayMonth time.Month, b
 
 	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
 
+	writeDailyTotals(file, week)
+
 	if len(week.ByProject) > 0 {
-		fmt.Fprintf(file, "## Projects\n\n")
 		writeProjectSummary(file, week.ByProject, week.Total)
 		fmt.Fprintf(file, "\n")
 	}
 
 	if len(week.ByTag) > 0 {
-		fmt.Fprintf(file, "## Overview\n\n")
 		writeTagSummary(file, week.ByTag, week.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
@@ -247,6 +235,43 @@ func WeekSection(file *os.File, week model.WeekData, birthdayMonth time.Month, b
 	}
 
 	fmt.Fprintf(file, "---\n\n")
+}
+
+func writeDailyTotals(file *os.File, week model.WeekData) {
+	dayTotals := make(map[time.Weekday]float64)
+	for _, task := range week.Tasks {
+		for day, hours := range task.DayTotals {
+			dayTotals[day] += hours
+		}
+	}
+
+	days := []time.Weekday{
+		time.Sunday, time.Monday, time.Tuesday, time.Wednesday,
+		time.Thursday, time.Friday, time.Saturday,
+	}
+
+	fmt.Fprintf(file, "**Daily Totals:**\n\n")
+
+	fmt.Fprintf(file, "|")
+	for i, day := range days {
+		date := week.Start.AddDate(0, 0, i)
+		fmt.Fprintf(file, " %s %s |", day.String()[:3], date.Format("Jan 2"))
+	}
+	fmt.Fprintf(file, "\n|")
+	for range days {
+		fmt.Fprintf(file, "--:|")
+	}
+	fmt.Fprintf(file, "\n|")
+
+	for _, day := range days {
+		hours := dayTotals[day]
+		if hours <= 0 {
+			fmt.Fprintf(file, " — |")
+		} else {
+			fmt.Fprintf(file, " %s |", formatDuration(hours))
+		}
+	}
+	fmt.Fprintf(file, "\n\n")
 }
 
 func writeWeekTasks(file *os.File, tasks []model.TaskSummary) {

@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/amiraminb/lume/internal/report"
 	"github.com/amiraminb/lume/internal/report/build"
 	"github.com/amiraminb/lume/internal/report/render"
 	"github.com/amiraminb/lume/internal/timewarrior"
@@ -19,50 +17,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	if cfg.HasTag("generate") {
-		if err := runGenerate(cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "lume: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
-
 	if err := runReport(cfg, entries); err != nil {
 		fmt.Fprintf(os.Stderr, "lume: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-func runGenerate(cfg timewarrior.TimewConfig) error {
-	outputDir := cfg.Get("reports.lume.output")
-	if outputDir == "" {
-		return fmt.Errorf("reports.lume.output not set in timewarrior config")
-	}
-	outputDir = expandTilde(outputDir)
-
-	dataDir := resolveDataDir(cfg)
-	if dataDir == "" {
-		return fmt.Errorf("cannot determine timewarrior data directory")
-	}
-
-	fmt.Fprintf(os.Stderr, "Loading timewarrior data from: %s\n", dataDir)
-	entries, err := timewarrior.ParseDataDir(dataDir)
-	if err != nil {
-		return fmt.Errorf("failed to parse timewarrior data: %w", err)
-	}
-	fmt.Fprintf(os.Stderr, "Found %d time entries\n", len(entries))
-
-	birthdayMonth, birthdayDay, err := cfg.Birthday()
-	if err != nil {
-		return err
-	}
-
-	if err := report.Generate(entries, outputDir, birthdayMonth, birthdayDay); err != nil {
-		return fmt.Errorf("failed to generate reports: %w", err)
-	}
-
-	fmt.Fprintf(os.Stderr, "Reports generated under: %s/\n", outputDir)
-	return nil
 }
 
 func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
@@ -140,19 +98,3 @@ func resolveDataDir(cfg timewarrior.TimewConfig) string {
 	return filepath.Join(home, ".config", "timewarrior", "data")
 }
 
-func expandTilde(path string) string {
-	if !strings.HasPrefix(path, "~") {
-		return path
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return path
-	}
-	if path == "~" {
-		return home
-	}
-	if strings.HasPrefix(path, "~/") {
-		return filepath.Join(home, path[2:])
-	}
-	return path
-}

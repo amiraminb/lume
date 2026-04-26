@@ -112,6 +112,8 @@ func WeekReport(file *os.File, week model.WeekData, birthdayMonth time.Month, bi
 
 	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
 
+	writeDailyTotals(file, week)
+
 	if len(week.ByProject) > 0 {
 		writeProjectSummary(file, week.ByProject, week.Total)
 		fmt.Fprintf(file, "\n")

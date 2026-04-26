@@ -1,7 +1,7 @@
 BINARY  := lume
 EXTDIR  := $(HOME)/.config/timewarrior/extensions
 
-.PHONY: build install uninstall clean
+.PHONY: build install install-release uninstall clean
 
 build:
 	go build -o $(BINARY) .
@@ -9,6 +9,9 @@ build:
 install: build
 	mkdir -p $(EXTDIR)
 	mv $(CURDIR)/$(BINARY) $(EXTDIR)/$(BINARY)
+
+install-release:
+	./install.sh
 
 uninstall:
 	rm -f $(EXTDIR)/$(BINARY)

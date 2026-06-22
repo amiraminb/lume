@@ -454,8 +454,14 @@ func DayReportANSI(file *os.File, report model.DayReport, birthdayMonth time.Mon
 	if len(report.ByProject) > 0 {
 		writeColorShareChart(file, "Projects", report.ByProject, report.Total)
 	}
-
-	if report.Total == 0 {
-		fmt.Fprintln(file, emptyStyle.Render("No entries found for this day."))
+	if len(report.ByTag) > 0 {
+		writeColorShareChart(file, "Categories", report.ByTag, report.Total)
 	}
+
+	if len(report.Tasks) == 0 {
+		fmt.Fprintln(file, emptyStyle.Render("No entries found for this day."))
+		return
+	}
+
+	writeColorCategories(file, report.Tasks)
 }

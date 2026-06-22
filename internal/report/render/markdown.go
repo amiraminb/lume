@@ -112,15 +112,16 @@ func WeekReport(file *os.File, week model.WeekData, birthdayMonth time.Month, bi
 
 	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
 
-	writeDailyTotals(file, week)
+	writeWeekdayChart(file, week)
+	fmt.Fprintf(file, "\n")
 
 	if len(week.ByProject) > 0 {
-		writeProjectSummary(file, week.ByProject, week.Total)
+		writeShareChart(file, "Projects", week.ByProject, week.Total)
 		fmt.Fprintf(file, "\n")
 	}
 
 	if len(week.ByTag) > 0 {
-		writeTagSummary(file, week.ByTag, week.Total)
+		writeShareChart(file, "Categories", week.ByTag, week.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 
@@ -152,13 +153,18 @@ func MonthReport(file *os.File, month model.MonthData, year int, birthdayMonth t
 		}
 	}
 
+	if len(month.Weeks) > 0 {
+		writeWeekTrend(file, month.Weeks, birthdayMonth, birthdayDay)
+		fmt.Fprintf(file, "\n")
+	}
+
 	if len(monthProjects) > 0 {
-		writeProjectSummary(file, monthProjects, month.Total)
+		writeShareChart(file, "Projects", monthProjects, month.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 
 	if len(monthTags) > 0 {
-		writeTagSummary(file, monthTags, month.Total)
+		writeShareChart(file, "Categories", monthTags, month.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 
@@ -188,13 +194,18 @@ func RangeReport(file *os.File, report model.MonthData, start time.Time, end tim
 		}
 	}
 
+	if len(report.Weeks) > 0 {
+		writeWeekTrend(file, report.Weeks, birthdayMonth, birthdayDay)
+		fmt.Fprintf(file, "\n")
+	}
+
 	if len(rangeProjects) > 0 {
-		writeProjectSummary(file, rangeProjects, report.Total)
+		writeShareChart(file, "Projects", rangeProjects, report.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 
 	if len(rangeTags) > 0 {
-		writeTagSummary(file, rangeTags, report.Total)
+		writeShareChart(file, "Categories", rangeTags, report.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 
@@ -216,15 +227,16 @@ func WeekSection(file *os.File, week model.WeekData, birthdayMonth time.Month, b
 
 	fmt.Fprintf(file, "**Total:** %s\n\n", formatDuration(week.Total))
 
-	writeDailyTotals(file, week)
+	writeWeekdayChart(file, week)
+	fmt.Fprintf(file, "\n")
 
 	if len(week.ByProject) > 0 {
-		writeProjectSummary(file, week.ByProject, week.Total)
+		writeShareChart(file, "Projects", week.ByProject, week.Total)
 		fmt.Fprintf(file, "\n")
 	}
 
 	if len(week.ByTag) > 0 {
-		writeTagSummary(file, week.ByTag, week.Total)
+		writeShareChart(file, "Categories", week.ByTag, week.Total)
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 
@@ -237,43 +249,6 @@ func WeekSection(file *os.File, week model.WeekData, birthdayMonth time.Month, b
 	}
 
 	fmt.Fprintf(file, "---\n\n")
-}
-
-func writeDailyTotals(file *os.File, week model.WeekData) {
-	dayTotals := make(map[time.Weekday]float64)
-	for _, task := range week.Tasks {
-		for day, hours := range task.DayTotals {
-			dayTotals[day] += hours
-		}
-	}
-
-	days := []time.Weekday{
-		time.Sunday, time.Monday, time.Tuesday, time.Wednesday,
-		time.Thursday, time.Friday, time.Saturday,
-	}
-
-	fmt.Fprintf(file, "**Daily Totals:**\n\n")
-
-	fmt.Fprintf(file, "|")
-	for i, day := range days {
-		date := week.Start.AddDate(0, 0, i)
-		fmt.Fprintf(file, " %s %s |", day.String()[:3], date.Format("Jan 2"))
-	}
-	fmt.Fprintf(file, "\n|")
-	for range days {
-		fmt.Fprintf(file, "--:|")
-	}
-	fmt.Fprintf(file, "\n|")
-
-	for _, day := range days {
-		hours := dayTotals[day]
-		if hours <= 0 {
-			fmt.Fprintf(file, " — |")
-		} else {
-			fmt.Fprintf(file, " %s |", formatDuration(hours))
-		}
-	}
-	fmt.Fprintf(file, "\n\n")
 }
 
 func writeWeekTasks(file *os.File, tasks []model.TaskSummary) {

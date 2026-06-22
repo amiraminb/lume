@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/amiraminb/lume/internal/report/build"
 	"github.com/amiraminb/lume/internal/report/render"
@@ -29,6 +30,8 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 		return err
 	}
 
+	format := resolveFormat(cfg)
+
 	start, hasStart := cfg.ReportStart()
 	end, hasEnd := cfg.ReportEnd()
 
@@ -48,7 +51,11 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 			}
 		}
 		data := build.RangeReport(entries, earliest, latest)
-		render.RangeReport(os.Stdout, data, earliest, latest, birthdayMonth, birthdayDay)
+		if format == formatColor {
+			render.RangeReportANSI(os.Stdout, data, earliest, latest, birthdayMonth, birthdayDay)
+		} else {
+			render.RangeReport(os.Stdout, data, earliest, latest, birthdayMonth, birthdayDay)
+		}
 		return nil
 	}
 
@@ -60,23 +67,60 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 	switch {
 	case days <= 1:
 		data := build.DayReport(entries, start)
-		render.DayReport(os.Stdout, data, birthdayMonth, birthdayDay)
+		if format == formatColor {
+			render.DayReportANSI(os.Stdout, data, birthdayMonth, birthdayDay)
+		} else {
+			render.DayReport(os.Stdout, data, birthdayMonth, birthdayDay)
+		}
 	case days <= 7:
 		allEntries, err := loadAllEntries(cfg)
 		if err != nil {
 			return err
 		}
 		data := build.WeekReport(allEntries, start)
-		render.WeekReport(os.Stdout, data, birthdayMonth, birthdayDay)
+		if format == formatColor {
+			render.WeekReportANSI(os.Stdout, data, birthdayMonth, birthdayDay)
+		} else {
+			render.WeekReport(os.Stdout, data, birthdayMonth, birthdayDay)
+		}
 	case isFullMonth:
 		data := build.MonthReport(entries, start.Month(), start.Year())
-		render.MonthReport(os.Stdout, data, start.Year(), birthdayMonth, birthdayDay)
+		if format == formatColor {
+			render.MonthReportANSI(os.Stdout, data, start.Year(), birthdayMonth, birthdayDay)
+		} else {
+			render.MonthReport(os.Stdout, data, start.Year(), birthdayMonth, birthdayDay)
+		}
 	default:
 		data := build.RangeReport(entries, start, end)
-		render.RangeReport(os.Stdout, data, start, end, birthdayMonth, birthdayDay)
+		if format == formatColor {
+			render.RangeReportANSI(os.Stdout, data, start, end, birthdayMonth, birthdayDay)
+		} else {
+			render.RangeReport(os.Stdout, data, start, end, birthdayMonth, birthdayDay)
+		}
 	}
 
 	return nil
+}
+
+const (
+	formatMarkdown = "markdown"
+	formatColor    = "color"
+)
+
+// resolveFormat picks the output format by precedence: LUME_FORMAT env var,
+// then the reports.lume.format config key, then the default (color). Unknown
+// values fall back to the default rather than erroring.
+func resolveFormat(cfg timewarrior.TimewConfig) string {
+	candidates := []string{os.Getenv("LUME_FORMAT"), cfg.Format()}
+	for _, c := range candidates {
+		switch strings.ToLower(strings.TrimSpace(c)) {
+		case formatMarkdown:
+			return formatMarkdown
+		case formatColor:
+			return formatColor
+		}
+	}
+	return formatColor
 }
 
 func loadAllEntries(cfg timewarrior.TimewConfig) ([]timewarrior.Entry, error) {
@@ -97,4 +141,3 @@ func resolveDataDir(cfg timewarrior.TimewConfig) string {
 	}
 	return filepath.Join(home, ".config", "timewarrior", "data")
 }
-

@@ -50,6 +50,12 @@ func (c TimewConfig) HasTag(tag string) bool {
 	return v == tag
 }
 
+// Format returns the configured output format from reports.lume.format.
+// Empty string means unset; the caller applies its own default and precedence.
+func (c TimewConfig) Format() string {
+	return strings.TrimSpace(c.Values["reports.lume.format"])
+}
+
 func (c TimewConfig) Birthday() (time.Month, int, error) {
 	v := strings.TrimSpace(c.Values["reports.lume.birthday"])
 	if v == "" {

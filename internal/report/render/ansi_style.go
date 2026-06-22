@@ -24,7 +24,7 @@ const (
 	colorTableHeader = lipgloss.Color("130") // dim orange — table column headers
 	colorTotal       = lipgloss.Color("72")  // green — totals (matches share)
 	colorShare       = lipgloss.Color("72")  // green — share percentages and chart values
-	colorAccent      = lipgloss.Color("39")  // blue — trend bars
+	colorAccent      = lipgloss.Color("67")  // steel blue — trend bars (matches section headers)
 	colorProject     = lipgloss.Color("253") // whitish — project/category labels, bars, "Total:" label
 	colorDate        = lipgloss.Color("252") // light gray — date subtitles
 	colorBorder      = lipgloss.Color("240") // gray — table borders

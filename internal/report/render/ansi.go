@@ -141,7 +141,7 @@ func writeColorVerticalChart(file *os.File, title string, columns []chartColumn,
 
 	for row := chartHeight - 1; row >= 0; row-- {
 		if row == chartHeight-1 {
-			fmt.Fprintf(file, "%s %s", subtleStyle.Render(peakLabel), subtleStyle.Render("┤"))
+			fmt.Fprintf(file, "%s %s", shareStyle.Render(peakLabel), subtleStyle.Render("┤"))
 		} else {
 			fmt.Fprintf(file, "%s %s", strings.Repeat(" ", axisPad), subtleStyle.Render("│"))
 		}

@@ -84,10 +84,10 @@ func writeColorShareChart(file *os.File, title string, values map[string]float64
 		if total > 0 {
 			pct = (r.hours / total) * 100
 		}
-		label := lipgloss.NewStyle().Foreground(colorFor(r.label)).Render(fmt.Sprintf("%-*s", labelWidth, r.label))
+		label := projectStyle.Render(fmt.Sprintf("%-*s", labelWidth, r.label))
 		fmt.Fprintf(file, "%s  %s  %s  %s\n",
 			label,
-			renderColorBar(r.hours/max, colorFor(r.label)),
+			renderColorBar(r.hours/max, colorProject),
 			fmt.Sprintf("%7s", formatDuration(r.hours)),
 			subtleStyle.Render(fmt.Sprintf("%3.0f%%", pct)))
 	}
@@ -244,7 +244,7 @@ func writeColorCategoryTable(file *os.File, title string, tasks []model.TaskSumm
 			style := baseCell
 			switch col {
 			case 0:
-				style = style.Foreground(colorFor(rows[row][0]))
+				style = style.Foreground(colorProject)
 			case 2, 3:
 				style = style.Align(lipgloss.Right)
 			}
@@ -266,7 +266,7 @@ func writeColorCategories(file *os.File, tasks []model.TaskSummary) {
 // WeekReportANSI renders a week report as styled terminal output.
 func WeekReportANSI(file *os.File, week model.WeekData, birthdayMonth time.Month, birthdayDay int) {
 	fmt.Fprintln(file, titleStyle.Render(fmt.Sprintf("Week %d", birthdayWeekNumber(week.Start, birthdayMonth, birthdayDay))))
-	fmt.Fprintln(file, subtleStyle.Render(fmt.Sprintf("%s → %s",
+	fmt.Fprintln(file, dateStyle.Render(fmt.Sprintf("%s → %s",
 		week.Start.Format("Mon, Jan 2"), week.End.Format("Mon, Jan 2"))))
 	fmt.Fprintf(file, "%s %s\n\n", subtleStyle.Render("Total:"), totalStyle.Render(formatDuration(week.Total)))
 
@@ -341,7 +341,7 @@ func writeColorWeekTrend(file *os.File, weeks []model.WeekData, birthdayMonth ti
 // range report.
 func writeColorWeekSection(file *os.File, week model.WeekData, birthdayMonth time.Month, birthdayDay int) {
 	fmt.Fprintln(file, headerStyle.Render(fmt.Sprintf("Week %d", birthdayWeekNumber(week.Start, birthdayMonth, birthdayDay))))
-	fmt.Fprintln(file, subtleStyle.Render(fmt.Sprintf("%s → %s  ·  %s",
+	fmt.Fprintln(file, dateStyle.Render(fmt.Sprintf("%s → %s  ·  %s",
 		week.Start.Format("Mon, Jan 2"), week.End.Format("Mon, Jan 2"), formatDuration(week.Total))))
 	fmt.Fprintln(file)
 
@@ -431,7 +431,7 @@ func RangeReportANSI(file *os.File, report model.MonthData, start, end time.Time
 // DayReportANSI renders a single-day report as styled terminal output.
 func DayReportANSI(file *os.File, report model.DayReport, birthdayMonth time.Month, birthdayDay int) {
 	fmt.Fprintln(file, titleStyle.Render(fmt.Sprintf("Day %d", birthdayDayNumber(report.Date, birthdayMonth, birthdayDay))))
-	fmt.Fprintln(file, subtleStyle.Render(report.Date.Format("Monday, Jan 2, 2006")))
+	fmt.Fprintln(file, dateStyle.Render(report.Date.Format("Monday, Jan 2, 2006")))
 	fmt.Fprintf(file, "%s %s\n\n", subtleStyle.Render("Total:"), totalStyle.Render(formatDuration(report.Total)))
 
 	if len(report.ByProject) > 0 {

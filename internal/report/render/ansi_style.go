@@ -20,8 +20,8 @@ func init() {
 
 const (
 	colorTitle       = lipgloss.Color("231") // bright white — report title
-	colorHeader      = lipgloss.Color("67")  // dim steel blue — section headers
-	colorTableHeader = lipgloss.Color("130") // dim orange — table column headers
+	colorHeader      = lipgloss.Color("74")  // steel cyan — section headers
+	colorTableHeader = lipgloss.Color("179") // dim yellow — table column headers
 	colorTotal       = lipgloss.Color("72")  // green — totals (matches share)
 	colorShare       = lipgloss.Color("72")  // green — share percentages and chart values
 	colorAccent      = lipgloss.Color("67")  // steel blue — trend bars (matches section headers)

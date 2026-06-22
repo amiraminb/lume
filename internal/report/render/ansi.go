@@ -80,7 +80,7 @@ func writeColorShareChart(file *os.File, title string, values map[string]float64
 		}
 	}
 
-	headerCell := lipgloss.NewStyle().Bold(true).Foreground(colorHeader).Padding(0, 1)
+	headerCell := lipgloss.NewStyle().Bold(true).Foreground(colorTableHeader).Padding(0, 1)
 	baseCell := lipgloss.NewStyle().Padding(0, 1)
 
 	tbl := table.New().
@@ -102,7 +102,7 @@ func writeColorShareChart(file *os.File, title string, values map[string]float64
 			case 1:
 				style = style.Align(lipgloss.Right)
 			case 2:
-				style = style.Align(lipgloss.Right).Foreground(colorSubtle)
+				style = style.Align(lipgloss.Right).Foreground(colorShare)
 			}
 			return style
 		})
@@ -243,7 +243,7 @@ func writeColorCategoryTable(file *os.File, title string, tasks []model.TaskSumm
 		}
 	}
 
-	headerCell := lipgloss.NewStyle().Bold(true).Foreground(colorHeader).Padding(0, 1)
+	headerCell := lipgloss.NewStyle().Bold(true).Foreground(colorTableHeader).Padding(0, 1)
 	baseCell := lipgloss.NewStyle().Padding(0, 1)
 
 	tbl := table.New().

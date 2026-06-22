@@ -19,15 +19,17 @@ func init() {
 }
 
 const (
-	colorTitle   = lipgloss.Color("231") // bright white — report title
-	colorHeader  = lipgloss.Color("81")  // bright cyan — section headers
-	colorTotal   = lipgloss.Color("220") // gold — totals
-	colorAccent  = lipgloss.Color("39")  // blue — trend bars
-	colorProject = lipgloss.Color("253") // whitish — project/category labels and bars
-	colorDate    = lipgloss.Color("252") // light gray — date subtitles
-	colorBorder  = lipgloss.Color("240") // gray — table borders
-	colorSubtle  = lipgloss.Color("245") // gray — labels, axes, percentages
-	colorEmpty   = lipgloss.Color("240") // gray — "no entries"
+	colorTitle       = lipgloss.Color("231") // bright white — report title
+	colorHeader      = lipgloss.Color("81")  // bright cyan — section headers
+	colorTableHeader = lipgloss.Color("214") // orange — table column headers
+	colorTotal       = lipgloss.Color("41")  // green — totals
+	colorShare       = lipgloss.Color("65")  // dim green — share percentages
+	colorAccent      = lipgloss.Color("39")  // blue — trend bars
+	colorProject     = lipgloss.Color("253") // whitish — project/category labels and bars
+	colorDate        = lipgloss.Color("252") // light gray — date subtitles
+	colorBorder      = lipgloss.Color("240") // gray — table borders
+	colorSubtle      = lipgloss.Color("245") // gray — labels, axes
+	colorEmpty       = lipgloss.Color("240") // gray — "no entries"
 )
 
 var (

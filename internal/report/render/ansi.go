@@ -354,28 +354,99 @@ func writeColorWeekTrend(file *os.File, weeks []model.WeekData, birthdayMonth ti
 	fmt.Fprintln(file)
 }
 
-// writeColorWeekSection renders one week as a sub-section inside a month or
-// range report.
-func writeColorWeekSection(file *os.File, week model.WeekData, birthdayMonth time.Month, birthdayDay int) {
-	fmt.Fprintln(file, headerStyle.Render(fmt.Sprintf("Week %d", birthdayWeekNumber(week.Start, birthdayMonth, birthdayDay))))
-	fmt.Fprintln(file, dateStyle.Render(fmt.Sprintf("%s → %s  ·  %s",
-		week.Start.Format("Mon, Jan 2"), week.End.Format("Mon, Jan 2"), formatDuration(week.Total))))
-	fmt.Fprintln(file)
-
-	writeColorWeekdayChart(file, week)
-
-	if len(week.ByProject) > 0 {
-		writeColorShareChart(file, "Projects", week.ByProject, week.Total)
+// weekDateRange formats a week's span compactly, omitting the repeated month
+// when start and end fall in the same month (e.g. "Jan 4–10" vs "Jan 28–Feb 3").
+func weekDateRange(start, end time.Time) string {
+	if start.Month() == end.Month() {
+		return fmt.Sprintf("%s %d–%d", start.Format("Jan"), start.Day(), end.Day())
 	}
-	if len(week.ByTag) > 0 {
-		writeColorShareChart(file, "Categories", week.ByTag, week.Total)
-	}
-	if len(week.Tasks) > 0 {
-		writeColorCategories(file, week.Tasks)
-	}
+	return fmt.Sprintf("%s–%s", start.Format("Jan 2"), end.Format("Jan 2"))
 }
 
-// aggregateWeeks rolls per-week tag/project maps up to a parent total.
+// writeColorWeeklyCategoryMatrix renders a single table with one row per week
+// and one column per category (plus a Total column), so each week's category
+// mix is visible at a glance. Weeks are rows so the table stays a bounded width
+// regardless of how many weeks the report spans (a year just grows downward).
+func writeColorWeeklyCategoryMatrix(file *os.File, weeks []model.WeekData, birthdayMonth time.Month, birthdayDay int) {
+	categoryTotals := make(map[string]float64)
+	for _, w := range weeks {
+		for tag, hours := range w.ByTag {
+			categoryTotals[tag] += hours
+		}
+	}
+	if len(categoryTotals) == 0 {
+		return
+	}
+
+	categories := make([]string, 0, len(categoryTotals))
+	for cat := range categoryTotals {
+		categories = append(categories, cat)
+	}
+	sort.Slice(categories, func(i, j int) bool {
+		if categoryTotals[categories[i]] != categoryTotals[categories[j]] {
+			return categoryTotals[categories[i]] > categoryTotals[categories[j]]
+		}
+		return categories[i] < categories[j]
+	})
+
+	cell := func(hours float64) string {
+		if hours <= 0 {
+			return "—"
+		}
+		return formatDuration(hours)
+	}
+
+	headers := make([]string, 0, len(categories)+2)
+	headers = append(headers, "Week")
+	headers = append(headers, categories...)
+	headers = append(headers, "Total")
+
+	rows := make([][]string, len(weeks))
+	for i, w := range weeks {
+		row := make([]string, 0, len(categories)+2)
+		row = append(row, fmt.Sprintf("W%d (%s)", birthdayWeekNumber(w.Start, birthdayMonth, birthdayDay), weekDateRange(w.Start, w.End)))
+		for _, cat := range categories {
+			row = append(row, cell(w.ByTag[cat]))
+		}
+		row = append(row, formatDuration(w.Total))
+		rows[i] = row
+	}
+
+	headerCell := lipgloss.NewStyle().Bold(true).Foreground(colorTableHeader).Padding(0, 1)
+	baseCell := lipgloss.NewStyle().Padding(0, 1)
+	totalCol := len(categories) + 1
+
+	fmt.Fprintln(file, headerStyle.Render("Weekly Categories"))
+	tbl := table.New().
+		Border(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(colorBorder)).
+		Headers(headers...).
+		Rows(rows...).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				if col >= 1 {
+					return headerCell.Align(lipgloss.Right)
+				}
+				return headerCell
+			}
+			style := baseCell
+			switch {
+			case col == 0:
+				style = style.Foreground(colorProject)
+			case col == totalCol:
+				style = style.Align(lipgloss.Right).Foreground(colorShare)
+			default:
+				style = style.Align(lipgloss.Right)
+			}
+			return style
+		})
+
+	fmt.Fprintln(file, tbl.Render())
+	fmt.Fprintln(file)
+}
+
+// aggregateWeeks rolls per-week category (tag) and project totals up to a
+// parent total.
 func aggregateWeeks(weeks []model.WeekData) (tags, projects map[string]float64) {
 	tags = make(map[string]float64)
 	projects = make(map[string]float64)
@@ -412,9 +483,7 @@ func MonthReportANSI(file *os.File, month model.MonthData, year int, birthdayMon
 		return
 	}
 
-	for _, week := range month.Weeks {
-		writeColorWeekSection(file, week, birthdayMonth, birthdayDay)
-	}
+	writeColorWeeklyCategoryMatrix(file, month.Weeks, birthdayMonth, birthdayDay)
 }
 
 // RangeReportANSI renders a custom date-range report as styled terminal output.
@@ -440,9 +509,7 @@ func RangeReportANSI(file *os.File, report model.MonthData, start, end time.Time
 		return
 	}
 
-	for _, week := range report.Weeks {
-		writeColorWeekSection(file, week, birthdayMonth, birthdayDay)
-	}
+	writeColorWeeklyCategoryMatrix(file, report.Weeks, birthdayMonth, birthdayDay)
 }
 
 // DayReportANSI renders a single-day report as styled terminal output.

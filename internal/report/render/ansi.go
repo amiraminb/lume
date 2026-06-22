@@ -49,18 +49,14 @@ func renderColorBar(ratio float64, color lipgloss.Color) string {
 	return filled + track
 }
 
-// writeColorShareChart renders a colored horizontal bar chart of labelled
-// shares. Bars scale to the largest value; the percentage is of total.
+// writeColorShareChart renders a labelled breakdown as a bordered table sorted
+// by time descending, with each row's share of the total.
 func writeColorShareChart(file *os.File, title string, values map[string]float64, total float64) {
 	rows := make([]chartRow, 0, len(values))
-	var max float64
 	for label, hours := range values {
 		rows = append(rows, chartRow{label: label, hours: hours})
-		if hours > max {
-			max = hours
-		}
 	}
-	if len(rows) == 0 || max <= 0 {
+	if len(rows) == 0 {
 		return
 	}
 
@@ -71,26 +67,47 @@ func writeColorShareChart(file *os.File, title string, values map[string]float64
 		return rows[i].label < rows[j].label
 	})
 
-	labelWidth := 0
-	for _, r := range rows {
-		if n := len([]rune(r.label)); n > labelWidth {
-			labelWidth = n
-		}
-	}
-
-	fmt.Fprintln(file, headerStyle.Render(title))
-	for _, r := range rows {
+	data := make([][]string, len(rows))
+	for i, r := range rows {
 		pct := 0.0
 		if total > 0 {
 			pct = (r.hours / total) * 100
 		}
-		label := projectStyle.Render(fmt.Sprintf("%-*s", labelWidth, r.label))
-		fmt.Fprintf(file, "%s  %s  %s  %s\n",
-			label,
-			renderColorBar(r.hours/max, colorProject),
-			fmt.Sprintf("%7s", formatDuration(r.hours)),
-			subtleStyle.Render(fmt.Sprintf("%3.0f%%", pct)))
+		data[i] = []string{
+			r.label,
+			formatDuration(r.hours),
+			fmt.Sprintf("%.0f%%", pct),
+		}
 	}
+
+	headerCell := lipgloss.NewStyle().Bold(true).Foreground(colorHeader).Padding(0, 1)
+	baseCell := lipgloss.NewStyle().Padding(0, 1)
+
+	tbl := table.New().
+		Border(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(colorBorder)).
+		Headers(title, "Time", "Share").
+		Rows(data...).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				if col >= 1 {
+					return headerCell.Align(lipgloss.Right)
+				}
+				return headerCell
+			}
+			style := baseCell
+			switch col {
+			case 0:
+				style = style.Foreground(colorProject)
+			case 1:
+				style = style.Align(lipgloss.Right)
+			case 2:
+				style = style.Align(lipgloss.Right).Foreground(colorSubtle)
+			}
+			return style
+		})
+
+	fmt.Fprintln(file, tbl.Render())
 	fmt.Fprintln(file)
 }
 

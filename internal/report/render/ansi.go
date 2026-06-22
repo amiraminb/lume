@@ -9,6 +9,7 @@ import (
 
 	"github.com/amiraminb/lume/internal/report/model"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 )
 
 const ansiBarWidth = 28
@@ -93,7 +94,7 @@ func writeColorShareChart(file *os.File, title string, values map[string]float64
 	fmt.Fprintln(file)
 }
 
-var accentColor = lipgloss.Color("39")
+var accentColor = colorAccent
 
 // writeColorVerticalChart draws a colored column chart: columns rise from a
 // baseline using vertical eighth-blocks, with a y-axis peak label and per-column
@@ -203,7 +204,8 @@ func writeColorWeekdayChart(file *os.File, week model.WeekData) {
 	writeColorVerticalChart(file, "Daily Trend", columns, formatDuration(max))
 }
 
-// writeColorCategoryTable prints a category's tasks as a colored, aligned table.
+// writeColorCategoryTable prints a category's tasks as a bordered table with
+// the project column tinted by its stable color.
 func writeColorCategoryTable(file *os.File, title string, tasks []model.TaskSummary) {
 	fmt.Fprintln(file, headerStyle.Render(title))
 	if len(tasks) == 0 {
@@ -214,26 +216,42 @@ func writeColorCategoryTable(file *os.File, title string, tasks []model.TaskSumm
 
 	sorted := sortTasksByProject(tasks)
 
-	projWidth, descWidth := len("Project"), len("Task")
-	for _, t := range sorted {
-		projWidth = max(projWidth, len([]rune(truncate(projectName(t), 24))))
-		descWidth = max(descWidth, len([]rune(truncate(t.Description, 55))))
+	rows := make([][]string, len(sorted))
+	for i, t := range sorted {
+		rows[i] = []string{
+			truncate(projectName(t), 24),
+			truncate(t.Description, 55),
+			formatDuration(t.TotalTime),
+			fmt.Sprintf("%d", t.Sessions),
+		}
 	}
 
-	fmt.Fprintf(file, "%s  %s  %s  %s\n",
-		subtleStyle.Render(fmt.Sprintf("%-*s", projWidth, "Project")),
-		subtleStyle.Render(fmt.Sprintf("%-*s", descWidth, "Task")),
-		subtleStyle.Render(fmt.Sprintf("%7s", "Time")),
-		subtleStyle.Render("Sessions"))
-	for _, t := range sorted {
-		proj := projectName(t)
-		projCol := lipgloss.NewStyle().Foreground(colorFor(proj)).Render(fmt.Sprintf("%-*s", projWidth, truncate(proj, 24)))
-		fmt.Fprintf(file, "%s  %-*s  %s  %8d\n",
-			projCol,
-			descWidth, truncate(t.Description, 55),
-			fmt.Sprintf("%7s", formatDuration(t.TotalTime)),
-			t.Sessions)
-	}
+	headerCell := lipgloss.NewStyle().Bold(true).Foreground(colorHeader).Padding(0, 1)
+	baseCell := lipgloss.NewStyle().Padding(0, 1)
+
+	tbl := table.New().
+		Border(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(colorBorder)).
+		Headers("Project", "Task", "Time", "Sessions").
+		Rows(rows...).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				if col >= 2 {
+					return headerCell.Align(lipgloss.Right)
+				}
+				return headerCell
+			}
+			style := baseCell
+			switch col {
+			case 0:
+				style = style.Foreground(colorFor(rows[row][0]))
+			case 2, 3:
+				style = style.Align(lipgloss.Right)
+			}
+			return style
+		})
+
+	fmt.Fprintln(file, tbl.Render())
 	fmt.Fprintln(file)
 }
 

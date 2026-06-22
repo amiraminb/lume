@@ -179,7 +179,7 @@ func writeColorVerticalChart(file *os.File, title string, columns []chartColumn,
 	fmt.Fprintln(file)
 	fmt.Fprint(file, gutter)
 	for _, c := range columns {
-		fmt.Fprint(file, subtleStyle.Render(fmt.Sprintf("%-*s", colWidth+1, c.bottom)))
+		fmt.Fprint(file, shareStyle.Render(fmt.Sprintf("%-*s", colWidth+1, c.bottom)))
 	}
 	fmt.Fprintln(file)
 	fmt.Fprintln(file)
@@ -285,7 +285,7 @@ func WeekReportANSI(file *os.File, week model.WeekData, birthdayMonth time.Month
 	fmt.Fprintln(file, titleStyle.Render(fmt.Sprintf("Week %d", birthdayWeekNumber(week.Start, birthdayMonth, birthdayDay))))
 	fmt.Fprintln(file, dateStyle.Render(fmt.Sprintf("%s → %s",
 		week.Start.Format("Mon, Jan 2"), week.End.Format("Mon, Jan 2"))))
-	fmt.Fprintf(file, "%s %s\n\n", subtleStyle.Render("Total:"), totalStyle.Render(formatDuration(week.Total)))
+	fmt.Fprintf(file, "%s %s\n\n", projectStyle.Render("Total:"), totalStyle.Render(formatDuration(week.Total)))
 
 	writeColorWeekdayChart(file, week)
 
@@ -393,7 +393,7 @@ func aggregateWeeks(weeks []model.WeekData) (tags, projects map[string]float64) 
 // MonthReportANSI renders a month report as styled terminal output.
 func MonthReportANSI(file *os.File, month model.MonthData, year int, birthdayMonth time.Month, birthdayDay int) {
 	fmt.Fprintln(file, titleStyle.Render(fmt.Sprintf("%s %d", month.Month.String(), year)))
-	fmt.Fprintf(file, "%s %s\n\n", subtleStyle.Render("Total:"), totalStyle.Render(formatDuration(month.Total)))
+	fmt.Fprintf(file, "%s %s\n\n", projectStyle.Render("Total:"), totalStyle.Render(formatDuration(month.Total)))
 
 	tags, projects := aggregateWeeks(month.Weeks)
 
@@ -421,7 +421,7 @@ func MonthReportANSI(file *os.File, month model.MonthData, year int, birthdayMon
 func RangeReportANSI(file *os.File, report model.MonthData, start, end time.Time, birthdayMonth time.Month, birthdayDay int) {
 	fmt.Fprintln(file, titleStyle.Render(fmt.Sprintf("%s → %s",
 		start.Format("Jan 2, 2006"), end.AddDate(0, 0, -1).Format("Jan 2, 2006"))))
-	fmt.Fprintf(file, "%s %s\n\n", subtleStyle.Render("Total:"), totalStyle.Render(formatDuration(report.Total)))
+	fmt.Fprintf(file, "%s %s\n\n", projectStyle.Render("Total:"), totalStyle.Render(formatDuration(report.Total)))
 
 	tags, projects := aggregateWeeks(report.Weeks)
 
@@ -449,7 +449,7 @@ func RangeReportANSI(file *os.File, report model.MonthData, start, end time.Time
 func DayReportANSI(file *os.File, report model.DayReport, birthdayMonth time.Month, birthdayDay int) {
 	fmt.Fprintln(file, titleStyle.Render(fmt.Sprintf("Day %d", birthdayDayNumber(report.Date, birthdayMonth, birthdayDay))))
 	fmt.Fprintln(file, dateStyle.Render(report.Date.Format("Monday, Jan 2, 2006")))
-	fmt.Fprintf(file, "%s %s\n\n", subtleStyle.Render("Total:"), totalStyle.Render(formatDuration(report.Total)))
+	fmt.Fprintf(file, "%s %s\n\n", projectStyle.Render("Total:"), totalStyle.Render(formatDuration(report.Total)))
 
 	if len(report.ByProject) > 0 {
 		writeColorShareChart(file, "Projects", report.ByProject, report.Total)

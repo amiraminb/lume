@@ -20,12 +20,12 @@ func init() {
 
 const (
 	colorTitle       = lipgloss.Color("231") // bright white — report title
-	colorHeader      = lipgloss.Color("81")  // bright cyan — section headers
-	colorTableHeader = lipgloss.Color("214") // orange — table column headers
-	colorTotal       = lipgloss.Color("41")  // green — totals
-	colorShare       = lipgloss.Color("65")  // dim green — share percentages
+	colorHeader      = lipgloss.Color("67")  // dim steel blue — section headers
+	colorTableHeader = lipgloss.Color("130") // dim orange — table column headers
+	colorTotal       = lipgloss.Color("65")  // dim green — totals (matches share)
+	colorShare       = lipgloss.Color("65")  // dim green — share percentages and chart values
 	colorAccent      = lipgloss.Color("39")  // blue — trend bars
-	colorProject     = lipgloss.Color("253") // whitish — project/category labels and bars
+	colorProject     = lipgloss.Color("253") // whitish — project/category labels, bars, "Total:" label
 	colorDate        = lipgloss.Color("252") // light gray — date subtitles
 	colorBorder      = lipgloss.Color("240") // gray — table borders
 	colorSubtle      = lipgloss.Color("245") // gray — labels, axes
@@ -39,5 +39,6 @@ var (
 	totalStyle   = lipgloss.NewStyle().Bold(true).Foreground(colorTotal)
 	headerStyle  = lipgloss.NewStyle().Bold(true).Foreground(colorHeader)
 	projectStyle = lipgloss.NewStyle().Foreground(colorProject)
+	shareStyle   = lipgloss.NewStyle().Foreground(colorShare)
 	emptyStyle   = lipgloss.NewStyle().Foreground(colorEmpty)
 )

@@ -51,7 +51,9 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 			}
 		}
 		data := build.RangeReport(entries, earliest, latest)
-		if format == formatColor {
+		if format == formatCompact {
+			render.CompactRangeReport(os.Stdout, data, earliest, latest, birthdayMonth, birthdayDay)
+		} else if format == formatColor {
 			render.RangeReportANSI(os.Stdout, data, earliest, latest, birthdayMonth, birthdayDay)
 		} else {
 			render.RangeReport(os.Stdout, data, earliest, latest, birthdayMonth, birthdayDay)
@@ -67,7 +69,9 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 	switch {
 	case days <= 1:
 		data := build.DayReport(entries, start)
-		if format == formatColor {
+		if format == formatCompact {
+			render.CompactDayReport(os.Stdout, data, birthdayMonth, birthdayDay)
+		} else if format == formatColor {
 			render.DayReportANSI(os.Stdout, data, birthdayMonth, birthdayDay)
 		} else {
 			render.DayReport(os.Stdout, data, birthdayMonth, birthdayDay)
@@ -78,21 +82,27 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 			return err
 		}
 		data := build.WeekReport(allEntries, start)
-		if format == formatColor {
+		if format == formatCompact {
+			render.CompactWeekReport(os.Stdout, data, birthdayMonth, birthdayDay)
+		} else if format == formatColor {
 			render.WeekReportANSI(os.Stdout, data, birthdayMonth, birthdayDay)
 		} else {
 			render.WeekReport(os.Stdout, data, birthdayMonth, birthdayDay)
 		}
 	case isFullMonth:
 		data := build.MonthReport(entries, start.Month(), start.Year())
-		if format == formatColor {
+		if format == formatCompact {
+			render.CompactMonthReport(os.Stdout, data, start.Year(), birthdayMonth, birthdayDay)
+		} else if format == formatColor {
 			render.MonthReportANSI(os.Stdout, data, start.Year(), birthdayMonth, birthdayDay)
 		} else {
 			render.MonthReport(os.Stdout, data, start.Year(), birthdayMonth, birthdayDay)
 		}
 	default:
 		data := build.RangeReport(entries, start, end)
-		if format == formatColor {
+		if format == formatCompact {
+			render.CompactRangeReport(os.Stdout, data, start, end, birthdayMonth, birthdayDay)
+		} else if format == formatColor {
 			render.RangeReportANSI(os.Stdout, data, start, end, birthdayMonth, birthdayDay)
 		} else {
 			render.RangeReport(os.Stdout, data, start, end, birthdayMonth, birthdayDay)
@@ -105,6 +115,7 @@ func runReport(cfg timewarrior.TimewConfig, entries []timewarrior.Entry) error {
 const (
 	formatMarkdown = "markdown"
 	formatColor    = "color"
+	formatCompact  = "compact"
 )
 
 // resolveFormat picks the output format by precedence: LUME_FORMAT env var,
@@ -118,6 +129,8 @@ func resolveFormat(cfg timewarrior.TimewConfig) string {
 			return formatMarkdown
 		case formatColor:
 			return formatColor
+		case formatCompact:
+			return formatCompact
 		}
 	}
 	return formatColor

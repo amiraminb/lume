@@ -51,15 +51,17 @@ Report type is auto-detected from the date span:
 
 ### Output formats
 
-Lume renders in two formats:
+Lume renders in three formats:
 
 - `color` (default): styled terminal output with colored bars, trend charts, and tables. Print it straight to the terminal (no pager needed).
+- `compact`: concise terminal output with totals, inline breakdowns, and task rows without charts or tables.
 - `markdown`: plain Markdown, suited for piping into a Markdown renderer such as [`glow`](https://github.com/charmbracelet/glow) or saving to a file.
 
 Select the format with the `LUME_FORMAT` environment variable (per invocation) or the `reports.lume.format` config key (persistent default). The environment variable wins when both are set, and an unrecognized value falls back to `color`.
 
 ```bash
 timew lume :week                          # color (default)
+LUME_FORMAT=compact timew lume :week      # concise terminal output
 LUME_FORMAT=markdown timew lume :week | glow
 ```
 
@@ -71,13 +73,13 @@ Configure options in timewarrior's own config file (`~/.config/timewarrior/timew
 
 ```
 reports.lume.birthday = 04-14
-reports.lume.format = color
+reports.lume.format = compact
 ```
 
 No separate config file is needed.
 
 - `reports.lume.birthday` is optional and accepts `MM-DD` or `YYYY-MM-DD`. Default is `04-14` if not set.
-- `reports.lume.format` is optional and accepts `color` or `markdown`. Default is `color` if not set.
+- `reports.lume.format` is optional and accepts `compact`, `color`, or `markdown`. Default is `color` if not set.
 
 ## Requirements
 
